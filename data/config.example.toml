@@ -1,0 +1,39 @@
+# ~/.config/linux-magnify/config.toml
+# The dock reloads this file automatically when you save it.
+
+[dock]
+position = "bottom"       # bottom | top | left | right
+icon_size = 48            # resting icon size (px)
+magnification = 2.0       # size of the icon under the cursor, relative to resting (1.0 = off, max 4.0)
+spread = 3.0              # how many neighbouring icons on each side are affected
+spacing = 8               # gap between icons (px)
+padding = 8               # space between icons and the shelf edge (px)
+margin = 8                # gap between the shelf and the screen edge (px)
+autohide = false
+autohide_delay_ms = 400
+show_labels = true        # show the app name above the hovered icon
+show_running = true       # also show running apps that are not pinned
+animation_ms = 90         # smoothing time constant; lower = snappier
+monitor = 0               # monitor index
+layer = "top"             # Wayland layer: background | bottom | top | overlay
+backend = "auto"          # auto | wayland | x11
+
+[style]
+background = "rgba(28, 28, 32, 0.55)"
+border = "rgba(255, 255, 255, 0.18)"
+corner_radius = 18
+indicator = "rgba(255, 255, 255, 0.9)"
+label_background = "rgba(20, 20, 24, 0.85)"
+label_foreground = "rgba(255, 255, 255, 1.0)"
+
+[apps]
+# Desktop-file ids (filename without .desktop, see /usr/share/applications),
+# or custom launchers as inline tables.
+pinned = [
+  "org.kde.dolphin",
+  "firefox",
+  "org.kde.konsole",
+  "code",
+  "thunderbird",
+  { name = "htop", exec = "kitty htop", icon = "utilities-system-monitor", wm_class = "kitty" },
+]
