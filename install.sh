@@ -25,29 +25,53 @@ fi
 
 bin="$HOME/.local/bin"
 share="$HOME/.local/share/linux-magnify"
-mkdir -p "$bin" "$share" "$HOME/.config/linux-magnify"
-rm -rf "$share/linux_magnify"
-cp -r linux_magnify "$share/"
-cat > "$bin/linux-magnify" <<SH
+apps="$HOME/.local/share/applications"
+conf="$HOME/.config/linux-magnify"
+autostart="$HOME/.config/autostart"
+
+# Ask everything up front, before touching anything.
+read -rp "Start the dock automatically on login? [Y/n] " ans
+want_autostart=1; [[ "$ans" == [nN]* ]] && want_autostart=0
+
+# --- Stage: build everything in a temp dir. Interrupting here changes nothing.
+mkdir -p "$HOME/.local/share"
+stage="$(mktemp -d "$HOME/.local/share/.linux-magnify-install.XXXXXX")"
+trap 'rm -rf "$stage"' EXIT
+trap 'echo; echo "Install cancelled. Nothing was changed."; exit 130' INT TERM HUP
+
+cp -r linux_magnify "$stage/linux_magnify"
+find "$stage/linux_magnify" -name __pycache__ -prune -exec rm -rf {} +
+cat > "$stage/launcher" <<SH
 #!/bin/sh
 export PYTHONPATH="$share\${PYTHONPATH:+:\$PYTHONPATH}"
 exec python3 -m linux_magnify "\$@"
 SH
-chmod +x "$bin/linux-magnify"
+chmod +x "$stage/launcher"
+sed "s|^Exec=.*|Exec=$bin/linux-magnify|" data/linux-magnify.desktop > "$stage/app.desktop"
+cp "$stage/app.desktop" "$stage/autostart.desktop"
+cp data/config.example.toml "$stage/config.toml"
 
-if [[ ! -f "$HOME/.config/linux-magnify/config.toml" ]]; then
-  cp data/config.example.toml "$HOME/.config/linux-magnify/config.toml"
-  echo "Wrote ~/.config/linux-magnify/config.toml (edit 'pinned' to taste)."
+# --- Commit: a handful of quick renames. Signals are ignored only for this
+# fraction of a second so the install can't be left half-done.
+trap '' INT TERM HUP
+mkdir -p "$bin" "$share" "$apps" "$conf"
+[[ -d "$share/linux_magnify" ]] && mv "$share/linux_magnify" "$stage/old"
+mv "$stage/linux_magnify" "$share/linux_magnify"
+mv -f "$stage/launcher" "$bin/linux-magnify"
+mv -f "$stage/app.desktop" "$apps/linux-magnify.desktop"
+wrote_config=0
+if [[ ! -f "$conf/config.toml" ]]; then
+  mv "$stage/config.toml" "$conf/config.toml"; wrote_config=1
 fi
+if (( want_autostart )); then
+  mkdir -p "$autostart"
+  mv -f "$stage/autostart.desktop" "$autostart/linux-magnify.desktop"
+fi
+trap - INT TERM HUP
 
-mkdir -p "$HOME/.local/share/applications"
-sed "s|^Exec=.*|Exec=$bin/linux-magnify|" data/linux-magnify.desktop > "$HOME/.local/share/applications/linux-magnify.desktop"
-
-read -rp "Start the dock automatically on login? [Y/n] " ans
-if [[ "$ans" != [nN]* ]]; then
-  mkdir -p "$HOME/.config/autostart"
-  cp "$HOME/.local/share/applications/linux-magnify.desktop" "$HOME/.config/autostart/"
+(( wrote_config )) && echo "Wrote ~/.config/linux-magnify/config.toml (edit 'pinned' to taste)."
+if (( want_autostart )); then
   echo "Autostart enabled (KDE, GNOME, XFCE, Cinnamon, MATE, LXQt...)."
-  echo "Hyprland/Sway don't read ~/.config/autostart — see README for the exec-once line."
+  echo "Hyprland/Sway don't read ~/.config/autostart. See the README for the exec-once line."
 fi
 echo "Installed. Run: linux-magnify"
