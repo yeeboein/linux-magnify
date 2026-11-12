@@ -48,6 +48,7 @@ exec python3 -m linux_magnify "\$@"
 SH
 chmod +x "$stage/launcher"
 sed "s|^Exec=.*|Exec=$bin/linux-magnify|" data/linux-magnify.desktop > "$stage/app.desktop"
+sed "s|^Exec=.*|Exec=$bin/linux-magnify --settings|" data/linux-magnify-settings.desktop > "$stage/settings.desktop"
 cp "$stage/app.desktop" "$stage/autostart.desktop"
 cp data/config.example.toml "$stage/config.toml"
 
@@ -59,6 +60,7 @@ mkdir -p "$bin" "$share" "$apps" "$conf"
 mv "$stage/linux_magnify" "$share/linux_magnify"
 mv -f "$stage/launcher" "$bin/linux-magnify"
 mv -f "$stage/app.desktop" "$apps/linux-magnify.desktop"
+mv -f "$stage/settings.desktop" "$apps/linux-magnify-settings.desktop"
 wrote_config=0
 if [[ ! -f "$conf/config.toml" ]]; then
   mv "$stage/config.toml" "$conf/config.toml"; wrote_config=1
@@ -75,3 +77,4 @@ if (( want_autostart )); then
   echo "Hyprland/Sway don't read ~/.config/autostart. See the README for the exec-once line."
 fi
 echo "Installed. Run: linux-magnify"
+echo "Settings: open \"Linux Magnify Settings\" from your app menu, or run: linux-magnify --settings"

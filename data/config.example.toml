@@ -9,14 +9,15 @@ spread = 3.0              # how many neighbouring icons on each side are affecte
 spacing = 8               # gap between icons (px)
 padding = 8               # space between icons and the shelf edge (px)
 margin = 8                # gap between the shelf and the screen edge (px)
-autohide = false
-autohide_delay_ms = 400
+hide_mode = "auto"        # auto (same as the original panel) | never | dodge (hide when a window covers it) | always
+autohide_delay_ms = 400   # wait this long after the pointer leaves before hiding
 show_labels = true        # show the app name above the hovered icon
-show_running = true       # also show running apps that are not pinned
+show_running = true       # also show open apps that are not pinned
 animation_ms = 90         # smoothing time constant; lower = snappier
 monitor = 0               # monitor index
 layer = "top"             # Wayland layer: background | bottom | top | overlay
 backend = "auto"          # auto | wayland | x11
+hide_panels = "dock"      # hide the original panel while the dock runs: dock (same edge + other docks) | all | none
 
 [style]
 background = "rgba(28, 28, 32, 0.55)"
@@ -26,14 +27,18 @@ indicator = "rgba(255, 255, 255, 0.9)"
 label_background = "rgba(20, 20, 24, 0.85)"
 label_foreground = "rgba(255, 255, 255, 1.0)"
 
+[home]
+enabled = true            # home button: first icon on the dock, opens your app menu
+icon = "auto"             # auto = copy the launcher icon from your original panel, or an icon name / file path
+command = "auto"          # auto = your desktop's own app menu, or a command such as "rofi -show drun"
+
 [apps]
-# Desktop-file ids (filename without .desktop, see /usr/share/applications),
-# or custom launchers as inline tables.
-pinned = [
-  "org.kde.dolphin",
-  "firefox",
-  "org.kde.konsole",
-  "code",
-  "thunderbird",
-  { name = "htop", exec = "kitty htop", icon = "utilities-system-monitor", wm_class = "kitty" },
-]
+# Leave "pinned" unset to copy the pinned apps from your original panel/dock (kept in sync).
+# Set it to use your own list: desktop-file ids (filename without .desktop, see
+# /usr/share/applications), or custom launchers as inline tables.
+# pinned = [
+#   "org.kde.dolphin",
+#   "firefox",
+#   "org.kde.konsole",
+#   { name = "htop", exec = "kitty htop", icon = "utilities-system-monitor", wm_class = "kitty" },
+# ]

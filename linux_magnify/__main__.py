@@ -62,8 +62,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-m", "--magnification", type=float, help="override magnification factor (e.g. 2.0)")
     ap.add_argument("-s", "--icon-size", type=int, help="override resting icon size in px")
     ap.add_argument("--backend", choices=("auto", "wayland", "x11"), help="force display backend")
+    ap.add_argument("--settings", action="store_true", help="open the settings app")
+    ap.add_argument("--restore-panels", action="store_true",
+                    help="bring back the original panel/dock (if a crash left it hidden) and exit")
     ap.add_argument("--version", action="version", version=f"linux-magnify {__version__}")
     args = ap.parse_args(argv)
+
+    if args.settings:
+        from .settings import run
+        return run(args.config)
+    if args.restore_panels:
+        from .panels import restore
+        restore()
+        return 0
 
     cfg = load(args.config)
     overrides = {"position": args.position, "magnification": args.magnification,

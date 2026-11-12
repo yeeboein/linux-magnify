@@ -53,13 +53,15 @@ class DockView(Gtk.Widget):
         self.cursor: float | None = None  # main-axis pointer position
         self.hovered: int | None = None
         self.frac = 0.5
-        self.hide = 1.0 if cfg.autohide else 0.0
+        self.hide = 1.0 if cfg.effective_hide_mode == "always" else 0.0
+        self.covered = False  # a window overlaps the dock (for hide_mode = dodge)
         self._hide_timer = 0
         self._tick_id: int | None = None
         self._last_frame: float | None = None
         self._icon_cache: dict = {}
         self._region_key = None
         self._max_extra = 0.0
+        self._menu: Gtk.PopoverMenu | None = None
 
         motion = Gtk.EventControllerMotion()
         motion.connect("enter", self._on_enter)
@@ -164,6 +166,11 @@ class DockView(Gtk.Widget):
             self.update_size()
         self.queue_draw()
 
+    def set_covered(self, covered: bool):
+        if covered != self.covered:
+            self.covered = covered
+            self._ensure_ticking()
+
     def bounce(self, item: DockItem):
         item.bounce_until = time.monotonic() + BOUNCE_SECONDS
         self._ensure_ticking()
@@ -214,7 +221,44 @@ class DockView(Gtk.Widget):
         idx = self._hit(x, y)
         if idx is None or idx >= len(self.items):
             return
-        self._on_activate(self.items[idx], gesture.get_current_button())
+        self._on_activate(self.items[idx], gesture.get_current_button(), idx)
+
+    # ------------------------------------------------------------ context menu
+    def item_rect(self, idx: int) -> Gdk.Rectangle:
+        start, size = self._layout()[idx]
+        x, y, w, h = self._rect(start, self.cfg.margin + self.cfg.padding, size, size)
+        r = Gdk.Rectangle()
+        r.x, r.y, r.width, r.height = int(x), int(y), int(w), int(h)
+        return r
+
+    def show_menu(self, idx: int, model, actions) -> None:
+        if self._menu is not None:
+            self._menu.unparent()
+        menu = Gtk.PopoverMenu.new_from_model(model)
+        menu.set_has_arrow(True)
+        menu.set_parent(self)
+        self.insert_action_group("item", actions)
+        menu.set_pointing_to(self.item_rect(idx))
+        menu.set_position({"bottom": Gtk.PositionType.TOP, "top": Gtk.PositionType.BOTTOM,
+                           "left": Gtk.PositionType.RIGHT, "right": Gtk.PositionType.LEFT}[self.cfg.position])
+        menu.connect("closed", self._on_menu_closed)
+        self._menu = menu
+        menu.popup()
+
+    @property
+    def menu_open(self) -> bool:
+        return self._menu is not None and self._menu.get_visible()
+
+    def _on_menu_closed(self, menu):
+        GLib.idle_add(self._drop_menu, menu)
+        if self.cfg.autohide and not self.hovering:
+            self._on_leave(None)
+
+    def _drop_menu(self, menu):
+        if self._menu is menu:
+            menu.unparent()
+            self._menu = None
+        return GLib.SOURCE_REMOVE
 
     # ------------------------------------------------------------ animation
     def _ensure_ticking(self):
@@ -241,7 +285,8 @@ class DockView(Gtk.Widget):
                 busy = True
 
         hide_target = 0.0
-        if self.cfg.autohide and not self.hovering and not self._hide_timer:
+        if (self.cfg.autohide and not self.hovering and not self._hide_timer and not self.menu_open
+                and (self.cfg.effective_hide_mode == "always" or self.covered)):
             hide_target = 1.0
         diff = hide_target - self.hide
         if abs(diff) < 0.003:
@@ -451,7 +496,9 @@ class DockWindow(Gtk.ApplicationWindow):
         self.cfg = cfg
         self.view.cfg = cfg
         self.view._icon_cache.clear()
-        self.view.hide = 1.0 if cfg.autohide and not self.view.hovering else 0.0
+        if cfg.effective_hide_mode != "always" and not self.view.covered:
+            self.view.hide = 0.0
+        self.view._ensure_ticking()
         if self.mode == "layer":
             self.apply_layer_config()
         self.view.update_size()

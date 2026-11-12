@@ -11,7 +11,7 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("GdkX11", "4.0")
-from gi.repository import Gdk, GdkX11  # noqa: E402
+from gi.repository import Gdk, GdkX11, GLib  # noqa: E402
 
 
 class X11Dock:
@@ -50,6 +50,22 @@ class X11Dock:
         w.change_property(self._atom("_NET_WM_DESKTOP"), Xatom.CARDINAL, 32, [0xFFFFFFFF])
         self.dpy.flush()
 
+    def _tell_gdk(self, w, x, y, width, height):
+        """GTK doesn't know we moved the window behind its back; without this it
+        thinks the dock sits at (0, 0) and squeezes popovers (the right-click menu).
+        A synthetic ConfigureNotify carries root coordinates, which GDK trusts."""
+        from Xlib import X
+        from Xlib.protocol import event
+
+        try:
+            ev = event.ConfigureNotify(event=w, window=w, above_sibling=X.NONE, x=x, y=y,
+                                       width=width, height=height, border_width=0, override=False)
+            w.send_event(ev, event_mask=X.StructureNotifyMask)
+            self.dpy.flush()
+        except Exception as exc:
+            print(f"linux-magnify: could not update window position for GTK: {exc}")
+        return True
+
     def place(self):
         if self.dpy is None:
             return
@@ -79,6 +95,8 @@ class X11Dock:
         else:
             x, y = mx + mw - ww, my + (mh - wh) // 2
         w.configure(x=int(x), y=int(y), width=int(ww), height=int(wh))
+        self._tell_gdk(w, int(x), int(y), int(ww), int(wh))
+        GLib.timeout_add(400, lambda: self._tell_gdk(w, int(x), int(y), int(ww), int(wh)) and False)
 
         root = self.dpy.screen()
         sw, sh = root.width_in_pixels, root.height_in_pixels

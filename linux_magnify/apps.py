@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shlex
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import gi
@@ -26,12 +27,26 @@ class DockItem:
     windows: list[Window] = field(default_factory=list)
     bounce_until: float = 0.0
     scale: float = 1.0  # animated current scale
+    action: Callable[[], bool] | None = None  # set for special items such as the home button
+    kind: str = "app"  # "app" or "home"
+
+    @property
+    def pin_id(self) -> str | None:
+        """What to write into the pinned list for this item, if it can be pinned."""
+        if isinstance(self.app_info, Gio.DesktopAppInfo):
+            did = self.app_info.get_id()
+            if did:
+                return did[:-8] if did.endswith(".desktop") else did
+            return self.app_info.get_filename()
+        return None
 
     @property
     def running(self) -> bool:
         return bool(self.windows)
 
     def launch(self, display=None) -> bool:
+        if self.action is not None:
+            return self.action()
         if not self.app_info:
             return False
         ctx = display.get_app_launch_context() if display else None
@@ -68,6 +83,11 @@ def _keys_for(info: Gio.DesktopAppInfo | None, extra: list[str | None]) -> set[s
 
 
 def _desktop_info(desktop_id: str) -> Gio.DesktopAppInfo | None:
+    if os.path.isabs(desktop_id):
+        try:
+            return Gio.DesktopAppInfo.new_from_filename(desktop_id)
+        except TypeError:
+            return None
     did = desktop_id if desktop_id.endswith(".desktop") else desktop_id + ".desktop"
     try:
         return Gio.DesktopAppInfo.new(did)
@@ -81,7 +101,7 @@ def from_pinned(entry: PinnedApp) -> DockItem | None:
             info = Gio.AppInfo.create_from_commandline(entry.exec, entry.name, Gio.AppInfoCreateFlags.NONE)
         except Exception:
             info = None
-        icon = Gio.ThemedIcon.new(entry.icon) if entry.icon else Gio.ThemedIcon.new("application-x-executable")
+        icon = Gio.ThemedIcon.new_from_names([entry.icon or "application-x-executable", "application-x-executable"])
         if entry.icon and os.path.isabs(entry.icon):
             icon = Gio.FileIcon.new(Gio.File.new_for_path(entry.icon))
         name = entry.name or shlex.split(entry.exec)[0]
@@ -123,3 +143,9 @@ def from_window(win: Window) -> DockItem:
     else:
         item = DockItem(cls, Gio.ThemedIcon.new_with_default_fallbacks(cls.lower()), None, {cls.lower()}, pinned=False)
     return item
+
+
+def home_item(icon: str, on_click: Callable[[], bool]) -> DockItem:
+    gicon = (Gio.FileIcon.new(Gio.File.new_for_path(icon)) if os.path.isabs(icon)
+             else Gio.ThemedIcon.new_from_names([icon, "start-here", "view-app-grid-symbolic"]))
+    return DockItem("Applications", gicon, None, set(), pinned=True, action=on_click, kind="home")

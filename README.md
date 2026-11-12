@@ -9,7 +9,7 @@ single DE's panel:
 
 | Desktop / compositor | How it attaches | Running-app indicators & focus |
 |---|---|---|
-| **KDE Plasma 6 (Wayland)** | wlr-layer-shell | with [`kdotool`](https://github.com/jinliu/kdotool) installed |
+| **KDE Plasma 6 (Wayland)** | wlr-layer-shell | ✅ (built-in KWin script) |
 | **KDE Plasma (X11)** | EWMH dock window | ✅ |
 | **Hyprland** | wlr-layer-shell | ✅ (`hyprctl`) |
 | **Sway / SwayFX** | wlr-layer-shell | ✅ (`swaymsg`) |
@@ -21,15 +21,16 @@ single DE's panel:
 ## Features
 
 - Smooth, frame-synced magnification (cosine falloff, configurable size and spread)
+- **Replaces your original panel or dock:** it's hidden while Linux Magnify runs and comes back when the dock stops or you disable it (see [below](#your-original-panel))
+- **Copies your panel:** the pinned apps and the app-launcher ("home") icon come from your existing panel or dock, and clicking the home button opens your desktop's own app menu
+- Shows only pinned apps and open apps, with running-app dots
+- **Pin your own apps:** right-click any icon to pin or unpin it, or manage the list in the settings app
+- **Hiding modes:** always visible, hide when a window covers the dock, always auto-hide, or the same as your original panel. Push the pointer against the screen edge to bring a hidden dock back.
+- **Settings app** with an on/off switch: every option, applied live
 - Position on the bottom, top, left or right edge, any monitor
-- App-name label above the hovered icon
-- Bounce animation when an app launches
-- Running-app dots. Clicking a running app focuses it, and clicking again cycles its windows. Middle-click opens a new instance.
-- Shows running apps that aren't pinned (optional)
-- Auto-hide (optional), or reserves screen space so maximised windows don't cover it
+- App-name label above the hovered icon, and a bounce when an app launches
+- Clicking a running app focuses it, and clicking again cycles its windows. Middle-click opens a new instance.
 - Input passes through the transparent part of the dock, so only the shelf and icons take clicks
-- Uses your icon theme and `.desktop` files. Custom commands are supported too.
-- Reloads the config file as soon as you save it
 
 ## Install
 
@@ -90,10 +91,58 @@ exec linux-magnify
 
 ### KDE Plasma
 
-Run `./install.sh` and answer yes to autostart, or add it under *System Settings → Autostart*.
-You'll probably want to remove or auto-hide the default Plasma panel (or move it
-to the top) so the two don't overlap. For running-app dots on Plasma Wayland,
-install `kdotool`.
+Run `./install.sh` and answer yes to autostart, or use the switch in the settings app.
+The Plasma panel on the dock's edge is hidden automatically, and its pinned apps and
+launcher icon are copied to the dock. Running-app dots, click-to-focus and window
+dodging use a small KWin script that the dock loads and unloads itself.
+
+## Settings app
+
+Open **Linux Magnify Settings** from your app menu, right-click any dock icon and pick **Dock Settings…**, or run:
+
+```bash
+linux-magnify --settings
+```
+
+- **General:** the **Enable Linux Magnify** switch starts or stops the dock and turns autostart on or off; stopping it brings your original panel back. Also position, monitor, hiding mode, labels, open apps, and how much of the original panel to hide.
+- **Appearance:** icon size, magnification, spread, animation speed, spacing and colours.
+- **Apps:** pinned apps. Add, remove and reorder them, or copy them from your original panel again.
+- **Home button:** show or hide it, and override its icon or command.
+
+Changes apply to the running dock immediately.
+
+## Your original panel
+
+While the dock runs, Linux Magnify hides the desktop's own panel or dock, and restores it when the dock stops:
+
+| Desktop | What happens |
+|---|---|
+| KDE Plasma | Panels on the dock's edge switch to auto-hide (plasmashell scripting) |
+| Cinnamon, MATE, Xfce | Panels on the dock's edge switch to auto-hide |
+| GNOME / Ubuntu | The Dash to Dock / Ubuntu Dock extension is turned off |
+| Plank, Latte, nwg-dock, Cairo-Dock and other docks | Stopped, then started again afterwards |
+| Waybar, Polybar, tint2 and other bars | Stopped only when "Every panel and bar" is selected |
+
+Everything changed is recorded in `~/.local/state/linux-magnify/hidden-panels.json` before it's changed, so a crash can't lose your setup. If the dock is ever killed without cleaning up, this brings your panel back:
+
+```bash
+linux-magnify --restore-panels
+```
+
+On Plasma the original panel is set to auto-hide rather than removed, so pushing the pointer hard against that screen edge can briefly reveal it.
+
+The pinned apps are copied from the Plasma task manager, the Cinnamon, Xfce or GNOME favourites, Plank or nwg-dock. They stay in sync with your panel until you change the list yourself.
+
+## Hiding
+
+`hide_mode` (General → Hiding in the settings app):
+
+- **Same as original panel** (`auto`): copies your panel's setting, read before the panel is hidden
+- **Always visible** (`never`): reserves space so maximised windows stop above the dock
+- **Hide when a window covers it** (`dodge`)
+- **Always auto-hide** (`always`)
+
+When the dock is hidden, push the pointer against the screen edge to show it. Dodging needs window positions, which come from KWin (Plasma, through a small KWin script the dock loads), Hyprland, Sway, or any X11 window manager.
 
 ## Configure
 
@@ -106,7 +155,7 @@ position = "bottom"
 icon_size = 48
 magnification = 2.0   # 1.0 disables the effect
 spread = 3.0          # icons affected on each side
-autohide = false
+hide_mode = "auto"    # auto | never | dodge | always
 
 [apps]
 pinned = ["org.kde.dolphin", "firefox", "org.kde.konsole",
@@ -134,9 +183,13 @@ Use `--backend x11` to force XWayland, for example on a compositor without layer
   edge. The program re-execs itself with `LD_PRELOAD=libgtk4-layer-shell.so`,
   which that library requires. On X11 it is marked `_NET_WM_WINDOW_TYPE_DOCK`
   with struts and positioned through python-xlib.
-- `linux_magnify/windows.py` polls the compositor (hyprctl, swaymsg, niri, kdotool,
-  or EWMH) for open windows and matches them to icons by desktop id,
-  `StartupWMClass` or executable name.
+- `linux_magnify/windows.py` gets the open windows and their positions from the
+  compositor (a KWin script on Plasma, hyprctl, swaymsg, niri, or EWMH on X11) and
+  matches them to icons by desktop id, `StartupWMClass` or executable name.
+- `linux_magnify/panels.py` hides and restores the original panel and copies its
+  pinned apps; `linux_magnify/home.py` finds its launcher icon and menu.
+- `linux_magnify/settings.py` is the settings app. It writes the config file,
+  which the dock watches.
 
 ## Tests
 

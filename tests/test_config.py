@@ -7,9 +7,10 @@ from linux_magnify.config import load
 
 class ConfigTest(unittest.TestCase):
     def test_defaults_when_missing(self):
-        cfg = load(Path("/nonexistent/config.toml"))
+        cfg = load(Path("/nonexistent/config.toml"), import_pins=False)
         self.assertEqual(cfg.position, "bottom")
-        self.assertTrue(cfg.pinned)
+        self.assertEqual(cfg.pinned, [])  # pins are imported from the panel only when asked
+        self.assertEqual(cfg.hide_mode, "auto")
 
     def test_parse(self):
         with tempfile.NamedTemporaryFile("w", suffix=".toml", delete=False) as fh:
