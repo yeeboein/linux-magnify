@@ -17,7 +17,7 @@ animation_ms = 90         # smoothing time constant; lower = snappier
 monitor = 0               # monitor index
 layer = "top"             # Wayland layer: background | bottom | top | overlay
 backend = "auto"          # auto | wayland | x11
-hide_panels = "dock"      # hide the original panel while the dock runs: dock (same edge + other docks) | all | none
+hide_panels = "all"       # hide the original panels while Magdoc is enabled: all (only Magdoc) | dock (same edge + other docks) | none
 
 [style]
 background = "rgba(28, 28, 32, 0.55)"

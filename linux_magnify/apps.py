@@ -53,7 +53,7 @@ class DockItem:
         try:
             ok = self.app_info.launch([], ctx)
         except Exception as exc:  # GLib.Error
-            print(f"linux-magnify: failed to launch {self.name}: {exc}")
+            print(f"magdoc: failed to launch {self.name}: {exc}")
             return False
         if ok:
             self.bounce_until = time.monotonic() + 1.2

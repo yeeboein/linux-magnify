@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import signal
-import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -15,40 +14,12 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import apps, home, magnify, panels, windows  # noqa: E402
+from . import apps, home, magnify, menu, panels, service, windows  # noqa: E402
 from .config import Config, PinnedApp, load, save  # noqa: E402
 from .dock import DockWindow  # noqa: E402
 
 POLL_SECONDS = 1.0
-PACKAGE_PARENT = str(Path(__file__).resolve().parent.parent)
-
-
-def pid_file() -> Path:
-    base = os.environ.get("XDG_RUNTIME_DIR") or str(panels.state_dir())
-    return Path(base) / "linux-magnify.pid"
-
-
-def running_pid() -> int | None:
-    """PID of a running dock, if any."""
-    try:
-        pid = int(pid_file().read_text().strip())
-        cmdline = Path(f"/proc/{pid}/cmdline").read_bytes()
-    except (OSError, ValueError):
-        return None
-    if b"linux_magnify" in cmdline or b"linux-magnify" in cmdline:
-        if b"--settings" not in cmdline:
-            return pid
-    return None
-
-
-def spawn(*args: str) -> None:
-    """Start another linux-magnify process (the dock or the settings app)."""
-    env = dict(os.environ)
-    env["PYTHONPATH"] = os.pathsep.join(filter(None, [PACKAGE_PARENT, env.get("PYTHONPATH")]))
-    for var in ("LD_PRELOAD", "LINUX_MAGNIFY_PRELOADED"):
-        env.pop(var, None)  # let the child pick its own backend
-    subprocess.Popen([sys.executable, "-m", "linux_magnify", *args], env=env, start_new_session=True,
-                     stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+from .control import pid_file, running_pid, spawn  # noqa: E402  (re-exported for older imports)
 
 
 def _display_mode() -> str:
@@ -60,9 +31,9 @@ def _display_mode() -> str:
             from gi.repository import Gtk4LayerShell as LS
             if LS.is_supported():
                 return "layer"
-            print("linux-magnify: compositor lacks wlr-layer-shell; showing a normal window.", file=sys.stderr)
+            print("magdoc: compositor lacks wlr-layer-shell; showing a normal window.", file=sys.stderr)
         except (ValueError, ImportError):
-            print("linux-magnify: Gtk4LayerShell typelib missing; showing a normal window.", file=sys.stderr)
+            print("magdoc: Gtk4LayerShell typelib missing; showing a normal window.", file=sys.stderr)
         return "window"
     if "X11" in kind:
         return "x11"
@@ -71,7 +42,7 @@ def _display_mode() -> str:
 
 class DockApp(Gtk.Application):
     def __init__(self, config_path: Path | None, overrides: dict):
-        super().__init__(application_id="io.github.linux_magnify.Dock",
+        super().__init__(application_id="io.github.linux_magnify.Magdoc",
                          flags=Gio.ApplicationFlags.NON_UNIQUE)
         self.config_path = config_path
         self.overrides = overrides
@@ -85,6 +56,7 @@ class DockApp(Gtk.Application):
         self._reload_id = 0
         self._stop = threading.Event()
         self._hidden_for: tuple[str, str] | None = None
+        self.service = None
 
     def _load(self) -> Config:
         cfg = load(self.config_path)
@@ -99,7 +71,7 @@ class DockApp(Gtk.Application):
             return
         other = running_pid()
         if other and other != os.getpid():
-            print(f"linux-magnify: the dock is already running (pid {other}).", file=sys.stderr)
+            print(f"magdoc: Magdoc is already running (pid {other}).", file=sys.stderr)
             return
         pid_file().parent.mkdir(parents=True, exist_ok=True)
         pid_file().write_text(str(os.getpid()))
@@ -114,9 +86,15 @@ class DockApp(Gtk.Application):
         self.window.present()
         GLib.idle_add(self._apply_panel_hiding)
 
-        self.backend = windows.detect(x11_session=(mode == "x11"))
+        self.service = service.start()
+        if self.service is not None:
+            self.service.handlers["ToggleMenu"] = self._toggle_menu
+        self._update_menu_geometry()
+        if self.cfg.home_enabled and home.resolve(self.cfg.home_icon, self.cfg.home_command).command == home.MAGDOC_MENU:
+            menu.start()  # warm it up so the first click opens instantly
+        self.backend = windows.detect(x11_session=(mode == "x11"), service=self.service)
         self.backend.on_change = lambda wins: GLib.idle_add(self._set_windows, wins)
-        print(f"linux-magnify: surface={mode} window-tracking={self.backend.name}", file=sys.stderr)
+        print(f"magdoc: surface={mode} window-tracking={self.backend.name}", file=sys.stderr)
         if self.backend.name not in ("none", "kwin"):  # kwin pushes updates itself
             threading.Thread(target=self._poll_loop, daemon=True).start()
         self._watch_config()
@@ -124,8 +102,12 @@ class DockApp(Gtk.Application):
     def do_shutdown(self):
         self._stop.set()
         self.backend.close()
+        menu.stop()
+        if self.service is not None:
+            self.service.close()
+        # The original panel stays hidden when the dock merely exits (logout, restart):
+        # it only comes back when Magdoc is disabled (control.disable / --restore-panels).
         if self.window is not None:
-            panels.restore()
             try:
                 if running_pid() == os.getpid():
                     pid_file().unlink()
@@ -148,11 +130,22 @@ class DockApp(Gtk.Application):
         if self.cfg.hide_mode == "auto":
             # Copy how the original panel hid itself (recorded before we hid it).
             self.cfg.resolved_hide_mode = panels.original_mode(self.cfg.position) or "never"
-            print(f"linux-magnify: hide mode copied from the original panel: {self.cfg.resolved_hide_mode}",
+            print(f"magdoc: hide mode copied from the original panel: {self.cfg.resolved_hide_mode}",
                   file=sys.stderr)
             self.window.apply_config(self.cfg)
         self._update_covered()
         return GLib.SOURCE_REMOVE
+
+    # --------------------------------------------------------------- start menu
+    def _update_menu_geometry(self):
+        c = self.cfg
+        # Open clear of the magnified icons, so the menu is never cropped by the dock.
+        menu.set_geometry(c.position, int(c.margin + c.padding + c.icon_size * c.magnification + 16))
+
+    def _toggle_menu(self):
+        """Meta key / D-Bus: do what the home button does."""
+        launcher = home.resolve(self.cfg.home_icon, self.cfg.home_command)
+        home.activate(launcher.command)
 
     # --------------------------------------------------------------- dodge
     def _dock_rect(self) -> tuple[int, int, int, int] | None:
@@ -228,7 +221,7 @@ class DockApp(Gtk.Application):
             try:
                 wins = self.backend.list_windows()
             except Exception as exc:
-                print(f"linux-magnify: window backend error: {exc}", file=sys.stderr)
+                print(f"magdoc: window backend error: {exc}", file=sys.stderr)
                 wins = []
             GLib.idle_add(self._set_windows, wins)
             fast = self.cfg.effective_hide_mode == "dodge" and self.backend.has_geometry
@@ -287,7 +280,7 @@ class DockApp(Gtk.Application):
             add(top, "Hide This Button", "hidehome", self._hide_home)
         # One section, no separator: on X11, GTK caps a dock window's popover height,
         # and a separator pushes the last item out of view.
-        add(top, "Dock Settings…", "settings", lambda: spawn("--settings"))
+        add(top, "Magdoc Settings…", "settings", lambda: spawn("--settings"))
         menu.append_section(None, top)
         self.window.view.show_menu(idx, menu, group)
 
@@ -333,13 +326,14 @@ class DockApp(Gtk.Application):
         try:
             self.cfg = self._load()
         except Exception as exc:
-            print(f"linux-magnify: config error, keeping old config: {exc}", file=sys.stderr)
+            print(f"magdoc: config error, keeping old config: {exc}", file=sys.stderr)
             return GLib.SOURCE_REMOVE
-        print("linux-magnify: config reloaded", file=sys.stderr)
+        print("magdoc: config reloaded", file=sys.stderr)
         self._build_pinned()
         self.transient = {}
         self.window.apply_config(self.cfg)
         self._refresh_items()
         self.window.view.update_size()
+        self._update_menu_geometry()
         self._apply_panel_hiding()
         return GLib.SOURCE_REMOVE

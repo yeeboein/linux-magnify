@@ -241,7 +241,7 @@ class X11Backend(Backend):
 
 
 KWIN_REPORT_SCRIPT = r"""
-// Loaded into KWin by linux-magnify: reports windows (class, geometry, desktop) over D-Bus.
+// Loaded into KWin by Magdoc: reports windows (class, geometry, desktop) over D-Bus.
 var SVC = "io.github.linux_magnify.Dock";
 function all() { return workspace.windowList ? workspace.windowList() : workspace.clientList(); }
 function onDesk(w) {
@@ -286,15 +286,6 @@ for (var i = 0; i < list.length; i++) {
 }
 """
 
-DOCK_DBUS_XML = """
-<node>
-  <interface name="io.github.linux_magnify.Dock">
-    <method name="Windows"><arg type="s" name="json" direction="in"/></method>
-  </interface>
-</node>
-"""
-
-
 class KWinBackend(Backend):
     """KDE Plasma (Wayland or X11): a KWin script pushes the window list to us over D-Bus."""
 
@@ -302,18 +293,18 @@ class KWinBackend(Backend):
     has_geometry = True
     SCRIPT_NAME = "linux-magnify-windows"
 
-    def __init__(self):
+    def __init__(self, service):
         from gi.repository import Gio, GLib
 
         from .panels import state_dir
 
+        if service is None:
+            raise RuntimeError("no D-Bus service")
         self._Gio, self._GLib = Gio, GLib
         self._wins: list[Window] = []
-        self._bus = Gio.bus_get_sync(Gio.BusType.SESSION, None)
-        node = Gio.DBusNodeInfo.new_for_xml(DOCK_DBUS_XML)
-        self._reg = self._bus.register_object("/Dock", node.interfaces[0], self._on_call, None, None)
-        self._owner = Gio.bus_own_name_on_connection(self._bus, "io.github.linux_magnify.Dock",
-                                                     Gio.BusNameOwnerFlags.REPLACE, None, None)
+        self._service = service
+        self._bus = service.bus
+        service.handlers["Windows"] = self._on_windows
         self._dir = state_dir()
         self._dir.mkdir(parents=True, exist_ok=True)
         path = self._dir / "kwin-windows.js"
@@ -338,7 +329,7 @@ class KWinBackend(Backend):
             sid = self._kwin("/Scripting", "org.kde.kwin.Scripting", "loadScript",
                              V("(ss)", (path, name)), "(i)").unpack()[0]
         except Exception as exc:
-            print(f"linux-magnify: KWin scripting failed: {exc}")
+            print(f"magdoc: KWin scripting failed: {exc}")
             return False
         for obj in (f"/Scripting/Script{sid}", f"/{sid}"):  # Plasma 6, Plasma 5
             try:
@@ -348,18 +339,16 @@ class KWinBackend(Backend):
                 continue
         return False
 
-    def _on_call(self, _conn, _sender, _path, _iface, method, params, invocation):
-        if method == "Windows":
-            try:
-                data = json.loads(params.unpack()[0])
-            except (ValueError, TypeError):
-                data = []
-            self._wins = [Window(d["id"], d.get("cls", ""), d.get("title", ""), bool(d.get("active")),
-                                 (int(d["x"]), int(d["y"]), int(d["w"]), int(d["h"])), bool(d.get("visible", True)))
-                          for d in data]
-            if self.on_change:
-                self.on_change(list(self._wins))
-        invocation.return_value(None)
+    def _on_windows(self, payload: str):
+        try:
+            data = json.loads(payload)
+        except (ValueError, TypeError):
+            data = []
+        self._wins = [Window(d["id"], d.get("cls", ""), d.get("title", ""), bool(d.get("active")),
+                             (int(d["x"]), int(d["y"]), int(d["w"]), int(d["h"])), bool(d.get("visible", True)))
+                      for d in data]
+        if self.on_change:
+            self.on_change(list(self._wins))
 
     def list_windows(self) -> list[Window]:
         return list(self._wins)
@@ -381,14 +370,10 @@ class KWinBackend(Backend):
 
     def close(self):
         self._unload(self.SCRIPT_NAME)
-        try:
-            self._bus.unregister_object(self._reg)
-            self._Gio.bus_unown_name(self._owner)
-        except Exception:
-            pass
+        self._service.handlers.pop("Windows", None)
 
 
-def detect(x11_session: bool) -> Backend:
+def detect(x11_session: bool, service=None) -> Backend:
     env = os.environ
     candidates: list[type[Backend]] = []
     if env.get("HYPRLAND_INSTANCE_SIGNATURE") and shutil.which("hyprctl"):
@@ -406,7 +391,7 @@ def detect(x11_session: bool) -> Backend:
         candidates.append(KdotoolBackend)
     for cls in candidates:
         try:
-            return cls()
+            return cls(service) if cls is KWinBackend else cls()
         except Exception:
             continue
     return Backend()

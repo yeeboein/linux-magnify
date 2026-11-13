@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs linux-magnify for the current user and (optionally) enables autostart.
+# Installs Magdoc for the current user and (optionally) enables autostart.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -22,6 +22,12 @@ if (( ${#missing[@]} )); then
   echo
   read -rp "Continue anyway? [y/N] " ans; [[ "$ans" == [yY]* ]] || exit 1
 fi
+if ! command -v qs >/dev/null && ! command -v quickshell >/dev/null; then
+  echo "Optional: install Quickshell for the Magdoc start menu and the Quickshell settings app"
+  echo "  (Arch: sudo pacman -S quickshell, or the quickshell-git AUR package)."
+  echo "  Without it, Magdoc uses KRunner as the start menu on Plasma and a GTK settings app."
+  echo
+fi
 
 bin="$HOME/.local/bin"
 share="$HOME/.local/share/linux-magnify"
@@ -30,12 +36,12 @@ conf="$HOME/.config/linux-magnify"
 autostart="$HOME/.config/autostart"
 
 # Ask everything up front, before touching anything.
-read -rp "Start the dock automatically on login? [Y/n] " ans
+read -rp "Start Magdoc automatically on login? [Y/n] " ans
 want_autostart=1; [[ "$ans" == [nN]* ]] && want_autostart=0
 
 # --- Stage: build everything in a temp dir. Interrupting here changes nothing.
 mkdir -p "$HOME/.local/share"
-stage="$(mktemp -d "$HOME/.local/share/.linux-magnify-install.XXXXXX")"
+stage="$(mktemp -d "$HOME/.local/share/.magdoc-install.XXXXXX")"
 trap 'rm -rf "$stage"' EXIT
 trap 'echo; echo "Install cancelled. Nothing was changed."; exit 130' INT TERM HUP
 
@@ -47,8 +53,8 @@ export PYTHONPATH="$share\${PYTHONPATH:+:\$PYTHONPATH}"
 exec python3 -m linux_magnify "\$@"
 SH
 chmod +x "$stage/launcher"
-sed "s|^Exec=.*|Exec=$bin/linux-magnify|" data/linux-magnify.desktop > "$stage/app.desktop"
-sed "s|^Exec=.*|Exec=$bin/linux-magnify --settings|" data/linux-magnify-settings.desktop > "$stage/settings.desktop"
+sed "s|^Exec=.*|Exec=$bin/magdoc|" data/magdoc.desktop > "$stage/app.desktop"
+sed "s|^Exec=.*|Exec=$bin/magdoc --settings|" data/magdoc-settings.desktop > "$stage/settings.desktop"
 cp "$stage/app.desktop" "$stage/autostart.desktop"
 cp data/config.example.toml "$stage/config.toml"
 
@@ -58,23 +64,27 @@ trap '' INT TERM HUP
 mkdir -p "$bin" "$share" "$apps" "$conf"
 [[ -d "$share/linux_magnify" ]] && mv "$share/linux_magnify" "$stage/old"
 mv "$stage/linux_magnify" "$share/linux_magnify"
-mv -f "$stage/launcher" "$bin/linux-magnify"
-mv -f "$stage/app.desktop" "$apps/linux-magnify.desktop"
-mv -f "$stage/settings.desktop" "$apps/linux-magnify-settings.desktop"
+mv -f "$stage/launcher" "$bin/magdoc"
+ln -sfn magdoc "$bin/linux-magnify"   # the old command name keeps working
+mv -f "$stage/app.desktop" "$apps/magdoc.desktop"
+mv -f "$stage/settings.desktop" "$apps/magdoc-settings.desktop"
+rm -f "$apps/linux-magnify.desktop" "$apps/linux-magnify-settings.desktop"   # old names
 wrote_config=0
 if [[ ! -f "$conf/config.toml" ]]; then
   mv "$stage/config.toml" "$conf/config.toml"; wrote_config=1
 fi
+rm -f "$autostart/linux-magnify.desktop"   # old name; don't start twice
 if (( want_autostart )); then
   mkdir -p "$autostart"
-  mv -f "$stage/autostart.desktop" "$autostart/linux-magnify.desktop"
+  mv -f "$stage/autostart.desktop" "$autostart/magdoc.desktop"
 fi
 trap - INT TERM HUP
 
-(( wrote_config )) && echo "Wrote ~/.config/linux-magnify/config.toml (edit 'pinned' to taste)."
+(( wrote_config )) && echo "Wrote ~/.config/linux-magnify/config.toml."
 if (( want_autostart )); then
   echo "Autostart enabled (KDE, GNOME, XFCE, Cinnamon, MATE, LXQt...)."
   echo "Hyprland/Sway don't read ~/.config/autostart. See the README for the exec-once line."
 fi
-echo "Installed. Run: linux-magnify"
-echo "Settings: open \"Linux Magnify Settings\" from your app menu, or run: linux-magnify --settings"
+echo "Installed. Run: magdoc"
+echo "Settings: open \"Magdoc Settings\" from your app menu, or run: magdoc --settings"
+echo "To turn Magdoc off and get your original panels back: magdoc --disable"

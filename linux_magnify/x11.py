@@ -20,7 +20,7 @@ class X11Dock:
         try:
             from Xlib import display
         except ImportError:
-            print("linux-magnify: python-xlib is not installed; the dock cannot be positioned on X11.")
+            print("magdoc: python-xlib is not installed; the dock cannot be positioned on X11.")
             self.dpy = None
             return
         self.dpy = display.Display()
@@ -63,7 +63,7 @@ class X11Dock:
             w.send_event(ev, event_mask=X.StructureNotifyMask)
             self.dpy.flush()
         except Exception as exc:
-            print(f"linux-magnify: could not update window position for GTK: {exc}")
+            print(f"magdoc: could not update window position for GTK: {exc}")
         return True
 
     def place(self):

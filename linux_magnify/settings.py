@@ -1,4 +1,4 @@
-"""Linux Magnify Settings: a GTK4 app to configure (and enable/disable) the dock.
+"""Magdoc Settings (GTK fallback): configure, enable or disable the dock.
 
 Every change is written to the config file right away; the running dock
 watches that file and applies changes live.
@@ -7,9 +7,6 @@ watches that file and applies changes live.
 from __future__ import annotations
 
 import os
-import shutil
-import signal
-import sys
 from pathlib import Path
 
 import gi
@@ -18,16 +15,16 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import __version__, apps, home, panels  # noqa: E402
-from .app import PACKAGE_PARENT, running_pid, spawn  # noqa: E402
+from . import __version__, apps, control, home, panels  # noqa: E402
+from .control import running_pid  # noqa: E402
 from .config import POSITIONS, Config, PinnedApp, load, save  # noqa: E402
 
 HIDE_MODE_CHOICES = [("auto", "Same as original panel"),
                      ("never", "Always visible"),
                      ("dodge", "Hide when a window covers it"),
                      ("always", "Always auto-hide")]
-HIDE_CHOICES = [("dock", "Panels on the same edge, and other docks"),
-                ("all", "Every panel and bar"),
+HIDE_CHOICES = [("all", "Every panel and dock (only Magdoc)"),
+                ("dock", "Panels on the dock's edge, and other docks"),
                 ("none", "Don't hide anything")]
 CSS = b"""
 .lm-list { border-radius: 10px; }
@@ -37,32 +34,6 @@ CSS = b"""
 .lm-status-on { color: #2ec27e; font-weight: bold; }
 .lm-status-off { opacity: 0.6; font-weight: bold; }
 """
-
-
-def autostart_file() -> Path:
-    base = os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config")
-    return Path(base) / "autostart" / "linux-magnify.desktop"
-
-
-def launch_command() -> str:
-    exe = shutil.which("linux-magnify")
-    if exe:
-        return exe
-    return f"env PYTHONPATH={PACKAGE_PARENT} {sys.executable} -m linux_magnify"
-
-
-def set_autostart(on: bool) -> None:
-    f = autostart_file()
-    if on:
-        f.parent.mkdir(parents=True, exist_ok=True)
-        f.write_text(
-            "[Desktop Entry]\nType=Application\nName=Linux Magnify Dock\n"
-            "Comment=macOS-style magnifying dock\n"
-            f"Exec={launch_command()}\nIcon=preferences-desktop\nTerminal=false\n"
-            "X-GNOME-Autostart-enabled=true\nX-KDE-autostart-phase=2\n"
-        )
-    else:
-        f.unlink(missing_ok=True)
 
 
 # ------------------------------------------------------------------ widgets
@@ -112,7 +83,7 @@ def _page(*children: Gtk.Widget) -> Gtk.ScrolledWindow:
 
 class SettingsWindow(Gtk.ApplicationWindow):
     def __init__(self, app: Gtk.Application, config_path: Path | None):
-        super().__init__(application=app, title="Linux Magnify Settings")
+        super().__init__(application=app, title="Magdoc Settings")
         self.set_default_size(720, 620)
         self.config_path = config_path
         self.cfg: Config = load(config_path)
@@ -210,7 +181,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
     # ---------------------------------------------------------------- pages
     def _general_page(self):
         self.enable_switch = Gtk.Switch()
-        self.enable_switch.set_active(running_pid() is not None or autostart_file().exists())
+        self.enable_switch.set_active(running_pid() is not None or control.autostart_enabled())
         self.enable_switch.connect("notify::active", self._on_enable)
         self.status_label = Gtk.Label(xalign=0)
 
@@ -218,10 +189,10 @@ class SettingsWindow(Gtk.ApplicationWindow):
         login_note = ("Hyprland, Sway and other tiling compositors don't use autostart: add "
                       "\"exec-once = linux-magnify\" (Hyprland) or \"exec linux-magnify\" (Sway) "
                       "to your config.") if any(w in desk for w in ("HYPRLAND", "SWAY", "NIRI", "RIVER")) else \
-            "Starts the dock now and every time you log in. Turn off to stop it and bring back your original panel."
+            "Starts Magdoc now and every time you log in. Turn off to stop it and bring back your original panel."
 
         return _page(
-            _list(_row("Enable Linux Magnify", login_note, self.enable_switch),
+            _list(_row("Enable Magdoc", login_note, self.enable_switch),
                   _row("Status", None, self.status_label)),
             _heading("Dock"),
             _list(
@@ -237,8 +208,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
             ),
             _heading("Original panel"),
             _list(
-                _row("Hide the original panel/dock",
-                     "Hidden while Linux Magnify runs, brought back when it stops or is disabled.",
+                _row("Hide the original panels",
+                     "Hidden all the time while Magdoc is enabled, brought back when you turn Magdoc off.",
                      self._dropdown("hide_panels", HIDE_CHOICES)),
             ),
         )
@@ -315,7 +286,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
         while (child := self.pinned_list.get_first_child()) is not None:
             self.pinned_list.remove(child)
         if self.cfg.pinned_imported:
-            self.pinned_note.set_text("Copied from your original panel/dock, and kept in sync with it until "
+            self.pinned_note.set_text("Copied from your original panel, and kept in sync with it until "
                                       "you change this list. Right-click icons in the dock to pin or unpin too.")
         else:
             self.pinned_note.set_text("Open apps that aren't pinned still show up while they run. "
@@ -437,7 +408,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
 
         return _page(
             _list(
-                _row("Show the home button", "First icon on the dock; opens your app menu",
+                _row("Show the home button", "First icon on the dock; opens the start menu (also the Meta key on Plasma)",
                      self._switch("home_enabled")),
                 _row("Icon", f"Copied from: {detected.source}", self.home_preview),
             ),
@@ -464,29 +435,24 @@ class SettingsWindow(Gtk.ApplicationWindow):
     # ---------------------------------------------------------------- about
     def _about_page(self):
         title = Gtk.Label(xalign=0)
-        title.set_markup(f"<span size='x-large' weight='bold'>Linux Magnify</span>  {__version__}")
+        title.set_markup(f"<span size='x-large' weight='bold'>Magdoc</span>  {__version__}")
         desc = Gtk.Label(xalign=0, wrap=True, label=(
             "A macOS-style magnifying dock for KDE Plasma, Hyprland, Sway, niri, Xfce, Cinnamon, MATE "
             "and other Linux desktops."))
         link = Gtk.LinkButton(uri="https://github.com/yeeboein/linux-magnify", label="Project page",
                               halign=Gtk.Align.START)
         cfg_path = Gtk.Label(xalign=0, selectable=True, wrap=True,
-                             label=f"Config file: {self.cfg.path}")
+                             label=f"Config file: {self.cfg.path}\nCommand: magdoc  (magdoc --settings, magdoc --menu)")
         cfg_path.add_css_class("lm-subtitle")
         return _page(title, desc, link, cfg_path)
 
     # --------------------------------------------------------- enable/disable
     def _on_enable(self, sw, _p):
         on = sw.get_active()
-        set_autostart(on)
-        pid = running_pid()
-        if on and pid is None:
-            spawn()
-        elif not on and pid is not None:
-            try:
-                os.kill(pid, signal.SIGTERM)  # the dock restores the original panel on exit
-            except OSError:
-                pass
+        # disable() stops the dock and brings the original panels back (it can take a
+        # few seconds on Plasma), so run it off the UI thread.
+        import threading
+        threading.Thread(target=control.enable if on else control.disable, daemon=True).start()
         GLib.timeout_add(800, lambda: self._refresh_status() and False)
 
     def _refresh_status(self):

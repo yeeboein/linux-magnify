@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Linux Magnify Dock
+Name=Magdoc
 Comment=macOS-style magnifying dock
-Exec=linux-magnify
+Exec=magdoc
 Icon=preferences-desktop
 Terminal=false
 Categories=Utility;

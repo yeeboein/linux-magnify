@@ -12,7 +12,10 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
-from .panels import _desktop, _gsettings, _kde_appletsrc, _run, kde_panel_applets, read_ini
+from . import menu
+from .panels import _desktop, _gsettings, _run, kde_appletsrc_sources, kde_panel_applets, read_ini
+
+MAGDOC_MENU = "magdoc:menu"
 
 KDE_LAUNCHERS = ("org.kde.plasma.kickoff", "org.kde.plasma.kicker", "org.kde.plasma.kickerdash")
 # App launchers for tiling compositors, in order of preference.
@@ -40,10 +43,16 @@ def distro_logo() -> str:
 
 
 def _kde_icon() -> str | None:
-    ini = read_ini(_kde_appletsrc())
-    for _name, _sec, general in kde_panel_applets(ini, KDE_LAUNCHERS):
-        return general.get("icon") or "start-here-kde"
+    # The live layout first, then the backup taken before Magdoc removed the panel.
+    for path in kde_appletsrc_sources():
+        for _name, _sec, general in kde_panel_applets(read_ini(path), KDE_LAUNCHERS):
+            return general.get("icon") or "start-here-kde"
     return None
+
+
+def _kde_launcher_live() -> bool:
+    """Is Plasma's own menu (Kickoff) still in a panel? It isn't once Magdoc removed the panels."""
+    return any(True for _ in kde_panel_applets(read_ini(kde_appletsrc_sources()[0]), KDE_LAUNCHERS))
 
 
 def _xfce() -> tuple[str, str] | None:
@@ -101,7 +110,13 @@ def detect() -> Launcher:
     desk = _desktop()
     if "KDE" in desk:
         icon = _kde_icon()
-        return Launcher(icon or distro_logo(), "dbus:kde-launcher",
+        if menu.available():
+            command = MAGDOC_MENU
+        elif _kde_launcher_live():
+            command = "dbus:kde-launcher"
+        else:
+            command = "krunner"  # Kickoff went away with the panel and Quickshell isn't installed
+        return Launcher(icon or distro_logo(), command,
                         "Plasma app launcher" if icon else "Plasma (no launcher widget found)")
     if "XFCE" in desk:
         found = _xfce()
@@ -113,6 +128,8 @@ def detect() -> Launcher:
         return Launcher(distro_logo(), "dbus:gnome-apps", "GNOME app grid")
     if "MATE" in desk:
         return Launcher(_mate_icon() or distro_logo(), generic_command() or "mate-panel --run-dialog", "MATE menu icon")
+    if menu.available():
+        return Launcher(distro_logo(), MAGDOC_MENU, "Magdoc menu")
     cmd = generic_command()
     return Launcher(distro_logo(), cmd or "", f"{shlex.split(cmd)[0]}" if cmd else "no app launcher found")
 
@@ -131,11 +148,15 @@ def _dbus_call(dest: str, path: str, iface: str, method: str, args=None) -> bool
         bus.call_sync(dest, path, iface, method, args, None, Gio.DBusCallFlags.NONE, 3000, None)
         return True
     except Exception as exc:
-        print(f"linux-magnify: home button: {exc}")
+        print(f"magdoc: home button: {exc}")
         return False
 
 
 def activate(command: str) -> bool:
+    if command == MAGDOC_MENU:
+        if menu.toggle():
+            return True
+        command = "krunner" if "KDE" in _desktop() else (generic_command() or "")
     if command == "dbus:kde-launcher":
         return _dbus_call("org.kde.plasmashell", "/PlasmaShell", "org.kde.PlasmaShell", "activateLauncherMenu")
     if command == "dbus:gnome-apps":
@@ -153,5 +174,5 @@ def activate(command: str) -> bool:
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
     except (OSError, ValueError) as exc:
-        print(f"linux-magnify: home button command failed: {exc}")
+        print(f"magdoc: home button command failed: {exc}")
         return False
