@@ -20,6 +20,7 @@ ShellRoot {
     property int gap: 140          // distance from the screen edge (clears the magnified icons)
     property int lastSeq: -1
     property string query: ""
+    property bool updateAvailable: false
     readonly property string python: Quickshell.env("MAGDOC_PYTHON") || "python3"
 
     readonly property var apps: DesktopEntries.applications.values
@@ -66,6 +67,19 @@ ShellRoot {
         watchChanges: true
         onFileChanged: trigger.reload()
         onLoaded: root.handle(trigger.text())
+    }
+
+    // Written by Magdoc's update check; shows "Update Magdoc" in the menu when there's a new version.
+    FileView {
+        id: updateState
+        path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
+              + "/linux-magnify/updates.json"
+        watchChanges: true
+        onFileChanged: updateState.reload()
+        onLoaded: {
+            try { root.updateAvailable = JSON.parse(updateState.text()).available === true; }
+            catch (e) { root.updateAvailable = false; }
+        }
     }
 
     // Click anywhere outside the menu to close it.
@@ -198,6 +212,22 @@ ShellRoot {
                         text: "Magdoc Settings"
                         onClicked: root.run([root.python, "-m", "linux_magnify", "--settings"])
                     }
+                    PowerButton {
+                        text: "Turn Off Magdoc"
+                        onClicked: root.run([root.python, "-m", "linux_magnify", "--disable"])
+                    }
+                    PowerButton {
+                        visible: root.updateAvailable
+                        text: "Update Magdoc"
+                        onClicked: root.run([root.python, "-m", "linux_magnify", "--update"])
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
                     Item { Layout.fillWidth: true }
                     PowerButton { text: "Lock"; onClicked: root.run(["loginctl", "lock-session"]) }
                     PowerButton {

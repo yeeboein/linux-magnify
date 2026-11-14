@@ -68,6 +68,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--enable", action="store_true", help="start Magdoc and turn on autostart")
     ap.add_argument("--disable", action="store_true",
                     help="stop Magdoc, turn off autostart and bring back the original panels")
+    ap.add_argument("--update", action="store_true", help="download and install the latest Magdoc")
+    ap.add_argument("--check-updates", action="store_true", help="check GitHub for a newer Magdoc")
+    ap.add_argument("--updates-json", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--restore-panels", action="store_true",
                     help="bring back the original panels without disabling autostart")
     ap.add_argument("--status-json", action="store_true", help=argparse.SUPPRESS)
@@ -95,6 +98,21 @@ def main(argv: list[str] | None = None) -> int:
     if args.enable or args.disable:
         from . import control
         control.enable() if args.enable else control.disable()
+        return 0
+    if args.update:
+        from . import updates
+        return updates.update(load(args.config, import_pins=False).update_branch)
+    if args.check_updates or args.updates_json:
+        from . import cli
+        st = cli.updates_json(args.config, check=True)
+        if args.updates_json:
+            cli.dump(st)
+        elif st.get("error"):
+            print(f"Could not check for updates: {st['error']}")
+            return 1
+        else:
+            print(f"Update available: {st['latest'][:7]} ({st.get('message', '')}). Run: magdoc --update"
+                  if st["available"] else "Magdoc is up to date.")
         return 0
     if args.restore_panels:
         from .panels import restore

@@ -20,6 +20,8 @@ ShellRoot {
     property bool autostart: false
     property var pending: ({})
     property var allApps: []
+    property var upd: ({})
+    property bool updating: false
     property string appQuery: ""
 
     readonly property var positions: ["bottom", "top", "left", "right"]
@@ -111,6 +113,20 @@ ShellRoot {
         }
     }
     Timer { interval: 2000; running: true; repeat: true; onTriggered: statusProc.running = true }
+
+    Process {
+        id: updProc
+        command: root.cmd(["--updates-json"])
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { root.upd = JSON.parse(text); root.updating = root.upd.updating === true; } catch (e) {}
+            }
+        }
+    }
+    Timer { id: updRecheck; interval: 15000; onTriggered: updProc.running = true }
+
+    function shortSha(sha) { return sha ? sha.substring(0, 7) : "unknown"; }
 
     Process {
         id: appsProc
@@ -233,12 +249,12 @@ ShellRoot {
                     }
 
                     Repeater {
-                        model: ["General", "Appearance", "Apps", "Home Button", "About"]
+                        model: ["General", "Appearance", "Apps", "Home Button", "Updates", "About"]
                         delegate: ItemDelegate {
                             required property string modelData
                             required property int index
                             Layout.fillWidth: true
-                            text: modelData
+                            text: modelData === "Updates" && root.upd.available ? "Updates  ●" : modelData
                             highlighted: pages.currentIndex === index
                             onClicked: pages.currentIndex = index
                         }
@@ -273,6 +289,17 @@ ShellRoot {
                                 Switch {
                                     checked: root.running || root.autostart
                                     onToggled: Quickshell.execDetached(root.cmd([checked ? "--enable" : "--disable"]))
+                                }
+                            }
+                            RowLayout {
+                                spacing: 8
+                                Button {
+                                    text: root.running ? "Turn Off Magdoc" : "Turn On Magdoc"
+                                    onClicked: Quickshell.execDetached(root.cmd([root.running ? "--disable" : "--enable"]))
+                                }
+                                Label {
+                                    opacity: 0.65
+                                    text: root.running ? "Magdoc is running." : "Magdoc is off."
                                 }
                             }
                         }
@@ -566,6 +593,74 @@ ShellRoot {
                     }
                 }
 
+                // ------------------------------------------------------- Updates
+                ScrollView {
+                    contentWidth: availableWidth
+                    ColumnLayout {
+                        width: parent.width - 40
+                        x: 20; y: 20
+                        spacing: 12
+
+                        Card {
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                font.pixelSize: 16
+                                font.bold: true
+                                text: root.updating ? "Updating Magdoc…"
+                                      : root.upd.available ? "A new version of Magdoc is available"
+                                      : root.upd.error ? "Couldn't check for updates"
+                                      : root.upd.installed ? "Magdoc is up to date" : "Checking for updates…"
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                opacity: 0.75
+                                visible: text !== ""
+                                text: root.upd.error ? root.upd.error
+                                      : root.upd.available ? root.shortSha(root.upd.latest) + ": " + (root.upd.message || "")
+                                                             + (root.upd.date ? "  (" + root.upd.date.substring(0, 10) + ")" : "")
+                                      : ""
+                            }
+                            SettingRow {
+                                title: "Installed version"
+                                subtitle: "Magdoc " + (root.upd.version || "") + ", build " + root.shortSha(root.upd.installed)
+                            }
+                            RowLayout {
+                                spacing: 8
+                                Button {
+                                    text: "Update Now"
+                                    highlighted: true
+                                    enabled: root.upd.available === true && !root.updating
+                                    onClicked: {
+                                        root.updating = true;
+                                        Quickshell.execDetached(root.cmd(["--update"]));
+                                        updRecheck.restart();
+                                    }
+                                }
+                                Button {
+                                    text: "Check Now"
+                                    enabled: !updProc.running && !root.updating
+                                    onClicked: updProc.running = true
+                                }
+                            }
+                        }
+
+                        Card {
+                            SettingRow {
+                                title: "Notify me about new versions"
+                                subtitle: "Magdoc checks GitHub every few hours and shows a notification with an "
+                                          + "“Update now” button when a new version is out."
+                                Switch {
+                                    checked: root.cfg.update_notify !== false
+                                    onToggled: root.set("update_notify", checked)
+                                }
+                            }
+                        }
+                        Item { implicitHeight: 20 }
+                    }
+                }
+
                 // --------------------------------------------------------- About
                 ScrollView {
                     contentWidth: availableWidth
@@ -586,7 +681,7 @@ ShellRoot {
                         Label {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; opacity: 0.65
                             text: "Config file: " + (root.cfg.config_path || "")
-                                  + "\nCommands: magdoc, magdoc --settings, magdoc --menu, magdoc --disable"
+                                  + "\nCommands: magdoc, magdoc --settings, magdoc --menu, magdoc --update, magdoc --disable"
                         }
                     }
                 }

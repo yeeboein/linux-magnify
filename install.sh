@@ -3,6 +3,21 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+# --yes: don't ask anything (used by `magdoc --update`); --commit SHA: the version being installed.
+assume_yes=0; commit=""
+while (( $# )); do
+  case "$1" in
+    --yes|-y) assume_yes=1 ;;
+    --commit) commit="${2:-}"; shift ;;
+  esac
+  shift
+done
+[[ -z "$commit" ]] && commit="$(git rev-parse HEAD 2>/dev/null || true)"
+ask() {  # ask "question" default(y/n) -> sets $ans
+  if (( assume_yes )); then ans="$2"; else read -rp "$1" ans || true; fi
+  if [[ -z "$ans" ]]; then ans="$2"; fi
+}
+
 missing=()
 python3 -c 'import gi; gi.require_version("Gtk", "4.0"); from gi.repository import Gtk' 2>/dev/null || missing+=("GTK4 + PyGObject")
 python3 -c 'import cairo' 2>/dev/null || missing+=("pycairo (python3-gi-cairo)")
@@ -20,7 +35,7 @@ if (( ${#missing[@]} )); then
   echo "  Debian 13 / Ubuntu 24.10+:     sudo apt install gir1.2-gtk-4.0 gir1.2-gtk4layershell-1.0 python3-gi python3-gi-cairo python3-xlib"
   echo "  openSUSE:                      sudo zypper install typelib-1_0-Gtk-4_0 typelib-1_0-Gtk4LayerShell-1_0 python3-gobject-cairo python3-xlib"
   echo
-  read -rp "Continue anyway? [y/N] " ans; [[ "$ans" == [yY]* ]] || exit 1
+  if (( ! assume_yes )); then read -rp "Continue anyway? [y/N] " ans; [[ "$ans" == [yY]* ]] || exit 1; fi
 fi
 if ! command -v qs >/dev/null && ! command -v quickshell >/dev/null; then
   echo "Optional: install Quickshell for the Magdoc start menu and the Quickshell settings app"
@@ -36,8 +51,12 @@ conf="$HOME/.config/linux-magnify"
 autostart="$HOME/.config/autostart"
 
 # Ask everything up front, before touching anything.
-read -rp "Start Magdoc automatically on login? [Y/n] " ans
-want_autostart=1; [[ "$ans" == [nN]* ]] && want_autostart=0
+if (( assume_yes )); then   # an update keeps the current choice
+  want_autostart=0; [[ -f "$autostart/magdoc.desktop" || -f "$autostart/linux-magnify.desktop" ]] && want_autostart=1
+else
+  ask "Start Magdoc automatically on login? [Y/n] " y
+  want_autostart=1; [[ "$ans" == [nN]* ]] && want_autostart=0
+fi
 
 # --- Stage: build everything in a temp dir. Interrupting here changes nothing.
 mkdir -p "$HOME/.local/share"
@@ -56,6 +75,7 @@ chmod +x "$stage/launcher"
 sed "s|^Exec=.*|Exec=$bin/magdoc|" data/magdoc.desktop > "$stage/app.desktop"
 sed "s|^Exec=.*|Exec=$bin/magdoc --settings|" data/magdoc-settings.desktop > "$stage/settings.desktop"
 cp "$stage/app.desktop" "$stage/autostart.desktop"
+printf '{"commit": "%s", "installed": "%s"}\n' "$commit" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$stage/INSTALLED.json"
 cp data/config.example.toml "$stage/config.toml"
 
 # --- Commit: a handful of quick renames. Signals are ignored only for this
@@ -64,6 +84,7 @@ trap '' INT TERM HUP
 mkdir -p "$bin" "$share" "$apps" "$conf"
 [[ -d "$share/linux_magnify" ]] && mv "$share/linux_magnify" "$stage/old"
 mv "$stage/linux_magnify" "$share/linux_magnify"
+mv -f "$stage/INSTALLED.json" "$share/INSTALLED.json"
 mv -f "$stage/launcher" "$bin/magdoc"
 ln -sfn magdoc "$bin/linux-magnify"   # the old command name keeps working
 mv -f "$stage/app.desktop" "$apps/magdoc.desktop"

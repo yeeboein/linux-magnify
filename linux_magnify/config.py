@@ -57,6 +57,9 @@ class Config:
     home_icon: str = "auto"      # "auto" copies the launcher icon from the original panel
     home_command: str = "auto"   # "auto" opens the desktop's own app menu
 
+    update_notify: bool = True    # notify when a new Magdoc version is on GitHub
+    update_branch: str = "main"
+
     background: str = "rgba(28, 28, 32, 0.55)"
     border: str = "rgba(255, 255, 255, 0.18)"
     corner_radius: float = 18.0
@@ -118,6 +121,7 @@ DOCK_KEYS = ("position", "icon_size", "magnification", "spread", "spacing", "pad
 STYLE_KEYS = ("background", "border", "corner_radius", "indicator", "label_background",
               "label_foreground")
 HOME_KEYS = {"enabled": "home_enabled", "icon": "home_icon", "command": "home_command"}
+UPDATE_KEYS = {"notify": "update_notify", "branch": "update_branch"}
 
 
 def _coerce(default, value):
@@ -145,10 +149,11 @@ def load(path: Path | None = None, import_pins: bool = True) -> Config:
     dock = data.get("dock", {})
     if "hide_mode" not in dock and "autohide" in dock:  # config files from before hide_mode
         cfg.hide_mode = "always" if dock["autohide"] else "never"
-    for key, value in data.get("home", {}).items():
-        if key in HOME_KEYS:
-            attr = HOME_KEYS[key]
-            setattr(cfg, attr, _coerce(getattr(cfg, attr), value))
+    for section, keys in (("home", HOME_KEYS), ("updates", UPDATE_KEYS)):
+        for key, value in data.get(section, {}).items():
+            if key in keys:
+                attr = keys[key]
+                setattr(cfg, attr, _coerce(getattr(cfg, attr), value))
 
     if cfg.position not in POSITIONS:
         cfg.position = "bottom"
@@ -201,6 +206,8 @@ def dumps(cfg: Config) -> str:
     lines += [f"{k} = {_toml_value(getattr(cfg, k))}" for k in STYLE_KEYS]
     lines += ["", "[home]"]
     lines += [f"{k} = {_toml_value(getattr(cfg, a))}" for k, a in HOME_KEYS.items()]
+    lines += ["", "[updates]"]
+    lines += [f"{k} = {_toml_value(getattr(cfg, a))}" for k, a in UPDATE_KEYS.items()]
     lines += ["", "[apps]"]
     if cfg.pinned_imported or getattr(cfg, "pinned_is_default", False):
         # Not customised yet: keep copying the pinned apps from the original panel.

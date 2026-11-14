@@ -14,7 +14,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import apps, home, magnify, menu, panels, service, windows  # noqa: E402
+from . import apps, control, home, magnify, menu, panels, service, updates, windows  # noqa: E402
 from .config import Config, PinnedApp, load, save  # noqa: E402
 from .dock import DockWindow  # noqa: E402
 
@@ -98,6 +98,9 @@ class DockApp(Gtk.Application):
         if self.backend.name not in ("none", "kwin"):  # kwin pushes updates itself
             threading.Thread(target=self._poll_loop, daemon=True).start()
         self._watch_config()
+        # Look for a new Magdoc a minute after start, then every few hours.
+        GLib.timeout_add_seconds(60, self._update_tick)
+        GLib.timeout_add_seconds(1800, self._update_tick)
 
     def do_shutdown(self):
         self._stop.set()
@@ -134,6 +137,31 @@ class DockApp(Gtk.Application):
                   file=sys.stderr)
             self.window.apply_config(self.cfg)
         self._update_covered()
+        return GLib.SOURCE_REMOVE
+
+    # --------------------------------------------------------------- updates
+    def _update_tick(self):
+        if self.cfg.update_notify and updates.due():
+            threading.Thread(target=self._check_updates, daemon=True).start()
+        return GLib.SOURCE_CONTINUE
+
+    def _check_updates(self):
+        st = updates.check(self.cfg.update_branch)
+        if st.get("available") and st.get("latest") != st.get("notified"):
+            GLib.idle_add(self._notify_update, st)
+
+    def _notify_update(self, st):
+        updates.mark_notified(st["latest"])
+        body = f"A new version of Magdoc is ready ({st['latest'][:7]})."
+        if st.get("message"):
+            body += f"\n{st['message']}"
+
+        def on_action(key):
+            if key == "update":
+                control.spawn("--update")
+            else:
+                control.spawn("--settings")
+        updates.notify("Magdoc update available", body, ["update", "Update now", "default", "Details"], on_action)
         return GLib.SOURCE_REMOVE
 
     # --------------------------------------------------------------- start menu
@@ -281,6 +309,8 @@ class DockApp(Gtk.Application):
         # One section, no separator: on X11, GTK caps a dock window's popover height,
         # and a separator pushes the last item out of view.
         add(top, "Magdoc Settings…", "settings", lambda: spawn("--settings"))
+        if item.kind == "home":  # (app icons already have 3 items; more don't fit on X11)
+            add(top, "Turn Off Magdoc", "disable", lambda: spawn("--disable"))
         menu.append_section(None, top)
         self.window.view.show_menu(idx, menu, group)
 

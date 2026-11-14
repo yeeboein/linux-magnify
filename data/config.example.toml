@@ -32,6 +32,10 @@ enabled = true            # home button: first icon on the dock, opens your app 
 icon = "auto"             # auto = copy the launcher icon from your original panel, or an icon name / file path
 command = "auto"          # auto = your desktop's own app menu, or a command such as "rofi -show drun"
 
+[updates]
+notify = true             # notify when a new Magdoc version is on GitHub (with an "Update now" button)
+branch = "main"
+
 [apps]
 # Leave "pinned" unset to copy the pinned apps from your original panel/dock (kept in sync).
 # Set it to use your own list: desktop-file ids (filename without .desktop, see

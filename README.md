@@ -28,6 +28,7 @@ single DE's panel:
 - **Pin your own apps:** right-click any icon to pin or unpin it, or manage the list in Magdoc Settings
 - **Hiding modes:** always visible, hide when a window covers the dock, always auto-hide, or the same as your original panel. Push the pointer against the screen edge to bring a hidden dock back.
 - **Magdoc Settings** (Quickshell) with an on/off switch: every option, applied live
+- **Update notifications:** Magdoc tells you when a new version is out, and installs it with one click
 - Position on the bottom, top, left or right edge, any monitor
 - App-name label above the hovered icon, and a bounce when an app launches
 - Clicking a running app focuses it, and clicking again cycles its windows. Middle-click opens a new instance.
@@ -122,8 +123,13 @@ It's a Quickshell app that follows your Plasma colour scheme. If Quickshell isn'
 - **Appearance:** icon size, magnification, spread, animation speed, spacing and colours.
 - **Apps:** pinned apps. Add, remove and reorder them, or copy them from your original panel again.
 - **Home button:** show or hide it, and override its icon or command.
+- **Updates:** the installed and latest versions, **Check Now** and **Update Now**, and whether to be notified about new versions.
 
-Changes apply to the running dock immediately.
+Changes apply to the running dock immediately. You can also turn Magdoc off from the start menu (**Turn Off Magdoc**) or by right-clicking the home button.
+
+## Updates
+
+Magdoc checks GitHub a minute after it starts and then every six hours. When a new version is out, it shows a notification with **Update now** and **Details** buttons, and the start menu shows **Update Magdoc**. Updating downloads the new version, installs it like `./install.sh` (keeping your settings and autostart choice), and restarts the dock. Turn the notifications off in Magdoc Settings → Updates, or set `notify = false` under `[updates]` in the config.
 
 ## Commands
 
@@ -132,6 +138,8 @@ Changes apply to the running dock immediately.
 | `magdoc` | Start the dock |
 | `magdoc --settings` | Open Magdoc Settings |
 | `magdoc --menu` | Open or close the start menu (bind it to a key on Hyprland/Sway) |
+| `magdoc --update` | Download and install the latest Magdoc, then restart the dock |
+| `magdoc --check-updates` | Check whether a new Magdoc is available |
 | `magdoc --enable` | Start Magdoc and turn on autostart |
 | `magdoc --disable` | Stop Magdoc, turn off autostart and bring your original panels back |
 | `magdoc --restore-panels` | Bring the original panels back without turning off autostart |

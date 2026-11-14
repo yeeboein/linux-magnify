@@ -9,10 +9,10 @@ import json
 from pathlib import Path
 
 from . import __version__, control
-from .config import (DOCK_KEYS, HIDE_MODES, HIDE_PANEL_MODES, HOME_KEYS, POSITIONS, STYLE_KEYS, Config,
-                     PinnedApp, _coerce, _parse_pinned, load, save)
+from .config import (DOCK_KEYS, HIDE_MODES, HIDE_PANEL_MODES, HOME_KEYS, POSITIONS, STYLE_KEYS, UPDATE_KEYS,
+                     Config, PinnedApp, _coerce, _parse_pinned, load, save)
 
-HOME_ATTRS = tuple(HOME_KEYS.values())
+HOME_ATTRS = tuple(HOME_KEYS.values()) + tuple(UPDATE_KEYS.values())
 
 
 def _icon_name(gicon) -> str:
@@ -94,6 +94,16 @@ def apps_json() -> list[dict]:
 
 def status_json() -> dict:
     return control.status()
+
+
+def updates_json(path: Path | None, check: bool) -> dict:
+    from . import updates
+
+    cfg = load(path, import_pins=False)
+    st = updates.check(cfg.update_branch) if check else dict(updates.read_state())
+    st.setdefault("installed", updates.installed_commit())
+    st["version"] = __version__
+    return st
 
 
 def dump(obj) -> None:
