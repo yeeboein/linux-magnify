@@ -47,7 +47,7 @@ def config_json(path: Path | None) -> dict:
     launcher = home.detect()
     data["home_detected"] = {
         "icon": launcher.icon, "source": launcher.source,
-        "command": ("Magdoc start menu" if launcher.command == home.MAGDOC_MENU
+        "command": ("linux-magnify start menu" if launcher.command == home.MAGDOC_MENU
                     else "your desktop's own app menu" if launcher.command.startswith("dbus:")
                     else launcher.command or "none"),
     }

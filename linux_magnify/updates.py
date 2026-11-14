@@ -1,9 +1,9 @@
-"""Magdoc updates: check GitHub for a newer version, notify, and install it.
+"""linux-magnify updates: check GitHub for a newer version, notify, and install it.
 
 The installer writes ``INSTALLED.json`` (the commit it installed) next to the
-package. Magdoc compares that with the latest commit of the configured branch
+package. linux-magnify compares that with the latest commit of the configured branch
 on GitHub, shows one desktop notification per new version, and
-``magdoc --update`` downloads that version and re-runs its installer.
+``linux-magnify --update`` downloads that version and re-runs its installer.
 """
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def _state_file() -> Path:
 
 
 def installed_commit() -> str:
-    """The commit this copy of Magdoc came from ("" when unknown)."""
+    """The commit this copy of linux-magnify came from ("" when unknown)."""
     try:
         return json.loads(installed_file().read_text()).get("commit", "")
     except (OSError, ValueError):
@@ -99,13 +99,13 @@ def mark_notified(sha: str) -> None:
 
 
 def update(branch: str = "main") -> int:
-    """Download the latest Magdoc, install it, and restart the dock if it was running."""
+    """Download the latest linux-magnify, install it, and restart the dock if it was running."""
     status = check(branch)
     if status.get("error"):
-        print(f"magdoc: could not check for updates: {status['error']}", file=sys.stderr)
+        print(f"linux-magnify: could not check for updates: {status['error']}", file=sys.stderr)
         return 1
     if not status.get("available") and status.get("installed"):
-        print("magdoc: already up to date")
+        print("linux-magnify: already up to date")
         return 0
     sha = status["latest"]
     _write_state(dict(read_state(), updating=True))
@@ -132,13 +132,13 @@ def update(branch: str = "main") -> int:
                 return 1
         if was_running:
             stop_dock()
-            launcher = shutil.which("magdoc")
+            launcher = shutil.which("linux-magnify") or shutil.which("magdoc")
             if launcher:
                 subprocess.Popen([launcher], start_new_session=True, stdin=subprocess.DEVNULL,
                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             else:
                 spawn()
-        print(f"magdoc: updated to {sha[:7]}")
+        print(f"linux-magnify: updated to {sha[:7]}")
         return 0
     finally:
         st = read_state()
@@ -172,9 +172,9 @@ def notify(title: str, body: str, actions: list[str], on_action=None) -> None:
                                  Gio.DBusSignalFlags.NONE, invoked)
         res = bus.call_sync("org.freedesktop.Notifications", "/org/freedesktop/Notifications",
                             "org.freedesktop.Notifications", "Notify",
-                            GLib.Variant("(susssasa{sv}i)", ("Magdoc", 0, "software-update-available", title,
+                            GLib.Variant("(susssasa{sv}i)", ("linux-magnify", 0, "software-update-available", title,
                                                              body, actions, {}, 0)),
                             GLib.VariantType("(u)"), Gio.DBusCallFlags.NONE, 5000, None)
         sent["id"] = res.unpack()[0]
     except Exception as exc:
-        print(f"magdoc: could not show a notification: {exc}", file=sys.stderr)
+        print(f"linux-magnify: could not show a notification: {exc}", file=sys.stderr)

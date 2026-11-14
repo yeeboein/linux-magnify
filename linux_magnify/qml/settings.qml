@@ -1,4 +1,4 @@
-// Magdoc Settings (Quickshell).
+// linux-magnify Settings (Quickshell).
 //
 // Reads and writes the config through `python -m linux_magnify --config-json /
 // --config-set`, so Python stays the only thing that touches the TOML file. The
@@ -30,7 +30,7 @@ ShellRoot {
     readonly property var hideModeLabels: ["Same as original panel", "Always visible",
                                            "Hide when a window covers it", "Always auto-hide"]
     readonly property var hidePanels: ["all", "dock", "none"]
-    readonly property var hidePanelLabels: ["Every panel and dock (only Magdoc)",
+    readonly property var hidePanelLabels: ["Every panel and dock (only magdoc)",
                                             "Panels on the dock's edge, and other docks", "Don't hide anything"]
 
     function cmd(args) { return [root.python, "-m", "linux_magnify"].concat(args); }
@@ -96,7 +96,7 @@ ShellRoot {
         stdout: StdioCollector {
             onStreamFinished: {
                 try { root.cfg = JSON.parse(text); root.ready = true; }
-                catch (e) { console.warn("magdoc: could not read config:", e); }
+                catch (e) { console.warn("linux-magnify: could not read config:", e); }
             }
         }
     }
@@ -214,7 +214,7 @@ ShellRoot {
     // ------------------------------------------------------------------- window
     FloatingWindow {
         id: win
-        title: "Magdoc Settings"
+        title: "linux-magnify Settings"
         implicitWidth: 860
         implicitHeight: 660
         color: pal.window
@@ -245,7 +245,7 @@ ShellRoot {
                             sourceSize.width: 64; sourceSize.height: 64
                             source: root.iconSource(root.cfg.home_detected ? root.cfg.home_detected.icon : "", "start-here")
                         }
-                        Label { text: "Magdoc"; font.pixelSize: 20; font.bold: true; color: pal.windowText }
+                        Label { text: "linux-magnify"; font.pixelSize: 20; font.bold: true; color: pal.windowText }
                     }
 
                     Repeater {
@@ -283,9 +283,9 @@ ShellRoot {
 
                         Card {
                             SettingRow {
-                                title: "Enable Magdoc"
-                                subtitle: "Starts Magdoc now and every time you log in, and hides your original panels "
-                                          + "all the time. Turn off to stop Magdoc and bring your panels back."
+                                title: "Enable linux-magnify magdoc"
+                                subtitle: "Starts magdoc now and every time you log in, and hides your original panels "
+                                          + "all the time. Turn off to stop magdoc and bring your panels back."
                                 Switch {
                                     checked: root.running || root.autostart
                                     onToggled: Quickshell.execDetached(root.cmd([checked ? "--enable" : "--disable"]))
@@ -294,12 +294,12 @@ ShellRoot {
                             RowLayout {
                                 spacing: 8
                                 Button {
-                                    text: root.running ? "Turn Off Magdoc" : "Turn On Magdoc"
+                                    text: root.running ? "Turn Off magdoc" : "Turn On magdoc"
                                     onClicked: Quickshell.execDetached(root.cmd([root.running ? "--disable" : "--enable"]))
                                 }
                                 Label {
                                     opacity: 0.65
-                                    text: root.running ? "Magdoc is running." : "Magdoc is off."
+                                    text: root.running ? "magdoc is running." : "magdoc is off."
                                 }
                             }
                         }
@@ -347,9 +347,9 @@ ShellRoot {
                         Card {
                             SettingRow {
                                 title: "Hide the original panels"
-                                subtitle: "Hidden all the time while Magdoc is enabled, also after logging in again. "
+                                subtitle: "Hidden all the time while linux-magnify is enabled, also after logging in again. "
                                           + "On Plasma the panels are removed and come back exactly as they were "
-                                          + "when you turn Magdoc off."
+                                          + "when you turn linux-magnify off."
                                 ComboBox {
                                     implicitWidth: 300
                                     model: root.hidePanelLabels
@@ -607,10 +607,10 @@ ShellRoot {
                                 wrapMode: Text.WordWrap
                                 font.pixelSize: 16
                                 font.bold: true
-                                text: root.updating ? "Updating Magdoc…"
-                                      : root.upd.available ? "A new version of Magdoc is available"
+                                text: root.updating ? "Updating linux-magnify…"
+                                      : root.upd.available ? "A new version of linux-magnify is available"
                                       : root.upd.error ? "Couldn't check for updates"
-                                      : root.upd.installed ? "Magdoc is up to date" : "Checking for updates…"
+                                      : root.upd.installed ? "linux-magnify is up to date" : "Checking for updates…"
                             }
                             Label {
                                 Layout.fillWidth: true
@@ -624,7 +624,7 @@ ShellRoot {
                             }
                             SettingRow {
                                 title: "Installed version"
-                                subtitle: "Magdoc " + (root.upd.version || "") + ", build " + root.shortSha(root.upd.installed)
+                                subtitle: "linux-magnify " + (root.upd.version || "") + ", build " + root.shortSha(root.upd.installed)
                             }
                             RowLayout {
                                 spacing: 8
@@ -649,7 +649,7 @@ ShellRoot {
                         Card {
                             SettingRow {
                                 title: "Notify me about new versions"
-                                subtitle: "Magdoc checks GitHub every few hours and shows a notification with an "
+                                subtitle: "linux-magnify checks GitHub every few hours and shows a notification with an "
                                           + "“Update now” button when a new version is out."
                                 Switch {
                                     checked: root.cfg.update_notify !== false
@@ -668,7 +668,7 @@ ShellRoot {
                         width: parent.width - 40
                         x: 20; y: 20
                         spacing: 10
-                        Label { text: "Magdoc " + (root.cfg.version || ""); font.pixelSize: 24; font.bold: true }
+                        Label { text: "linux-magnify " + (root.cfg.version || ""); font.pixelSize: 24; font.bold: true }
                         Label {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap
                             text: "A macOS-style magnifying dock for KDE Plasma, Hyprland, Sway, niri, Xfce, "
@@ -681,7 +681,7 @@ ShellRoot {
                         Label {
                             Layout.fillWidth: true; wrapMode: Text.WordWrap; opacity: 0.65
                             text: "Config file: " + (root.cfg.config_path || "")
-                                  + "\nCommands: magdoc, magdoc --settings, magdoc --menu, magdoc --update, magdoc --disable"
+                                  + "\nCommands: linux-magnify, linux-magnify --settings, --menu, --update, --disable (magdoc works too)"
                         }
                     }
                 }

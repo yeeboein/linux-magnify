@@ -1,8 +1,8 @@
 [Desktop Entry]
 Type=Application
-Name=Magdoc Settings
-Comment=Configure, enable or disable Magdoc
-Exec=magdoc --settings
+Name=linux-magnify Settings
+Comment=Configure, enable or disable linux-magnify
+Exec=linux-magnify --settings
 Icon=preferences-desktop
 Terminal=false
 Categories=Settings;DesktopSettings;

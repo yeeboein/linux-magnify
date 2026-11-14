@@ -1,9 +1,9 @@
-"""The desktop's own panel/dock: hide it while Magdoc is enabled, restore it
+"""The desktop's own panel/dock: hide it while linux-magnify is enabled, restore it
 afterwards, and copy its pinned apps.
 
 Everything that gets changed is written to a state file *before* it is
 changed, so ``restore()`` works even after a crash or a reboot
-(``magdoc --restore-panels``).
+(``linux-magnify --restore-panels``).
 """
 
 from __future__ import annotations
@@ -119,7 +119,7 @@ def _plasma_eval(script: str) -> str | None:
                             GLib.VariantType("(s)"), Gio.DBusCallFlags.NONE, 8000, None)
         return res.unpack()[0]
     except Exception as exc:
-        print(f"magdoc: plasmashell scripting failed: {exc}")
+        print(f"linux-magnify: plasmashell scripting failed: {exc}")
         return None
 
 
@@ -138,7 +138,7 @@ def kde_backup_dir() -> Path:
 
 
 def kde_appletsrc_sources() -> list[Path]:
-    """The live Plasma layout, then the backup taken before Magdoc removed panels."""
+    """The live Plasma layout, then the backup taken before linux-magnify removed panels."""
     return [_kde_appletsrc(), kde_backup_dir() / _kde_appletsrc().name]
 
 
@@ -261,7 +261,7 @@ def _restore_kde_remove(entry: dict):
 
 
 def _restore_kde(entry: dict):
-    """Older Magdoc versions only switched panels to auto-hide."""
+    """Older linux-magnify versions only switched panels to auto-hide."""
     if not entry.get("panels"):
         return
     mapping = json.dumps(entry["panels"])
@@ -286,7 +286,7 @@ def _kwin_reconfigure():
 
 
 def _bind_meta_key(state: list):
-    """Make the Meta key open Magdoc's menu (Plasma's own menu went away with the panel)."""
+    """Make the Meta key open linux-magnify's menu (Plasma's own menu went away with the panel)."""
     reader, writer = _kconfig_tool("read"), _kconfig_tool("write")
     if not (reader and writer):
         return
@@ -486,7 +486,7 @@ def _restore_process(entry: dict):
         subprocess.Popen(argv, start_new_session=True, stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except OSError as exc:
-        print(f"magdoc: could not restart {argv[0]}: {exc}")
+        print(f"linux-magnify: could not restart {argv[0]}: {exc}")
 
 
 # =================================================================== state
@@ -516,7 +516,7 @@ def hide(edge: str, mode: str) -> None:
     """Hide the original panel(s) / dock. ``mode`` is "dock", "all" or "none".
 
     Hidden stays hidden: this is not undone when the dock exits (so the old panel
-    never flashes at login), only by ``restore()`` when Magdoc is disabled."""
+    never flashes at login), only by ``restore()`` when linux-magnify is disabled."""
     previous = _read_state()
     info = next((e for e in previous if e.get("kind") == "info"), None)
     if info and info.get("edge") == edge and info.get("mode") == mode:
@@ -549,16 +549,16 @@ def hide(edge: str, mode: str) -> None:
             _hide_gnome(mode, state)
         _hide_processes(DOCK_PROCESSES + (BAR_PROCESSES if mode == "all" else ()), state)
     except Exception as exc:
-        print(f"magdoc: error while hiding panels: {exc}")
+        print(f"linux-magnify: error while hiding panels: {exc}")
     hidden = [e["kind"] for e in state if e["kind"] != "info"]
     if hidden:
-        print(f"magdoc: hid original panel(s): {', '.join(hidden)}")
+        print(f"linux-magnify: hid original panel(s): {', '.join(hidden)}")
 
 
 def original_mode(edge: str) -> str | None:
     """How the desktop's own panel on ``edge`` hides: "never", "always" or "dodge".
 
-    Uses the values recorded before Magdoc hid the panel, or reads them
+    Uses the values recorded before linux-magnify hid the panel, or reads them
     live when nothing is hidden."""
     state = _read_state()
     if not any(e.get("modes") for e in state):
@@ -596,11 +596,11 @@ def restore() -> None:
         try:
             restorers.get(entry.get("kind"), lambda e: None)(entry)
         except Exception as exc:
-            print(f"magdoc: error restoring {entry.get('kind')}: {exc}")
+            print(f"linux-magnify: error restoring {entry.get('kind')}: {exc}")
     path.unlink(missing_ok=True)
     if any(e.get("kind") != "info" for e in state):
         time.sleep(0.2)
-        print("magdoc: restored original panel(s)")
+        print("linux-magnify: restored original panel(s)")
 
 
 # ============================================================ pinned apps

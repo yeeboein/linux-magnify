@@ -49,15 +49,15 @@ class Config:
     monitor: int = 0
     layer: str = "top"
     backend: str = "auto"  # auto | wayland | x11
-    # Hide the desktop's own panels/docks while Magdoc is enabled (24/7, also across logins):
-    # "all" = every panel, dock and bar (only Magdoc), "dock" = the dock's edge + other docks, "none".
+    # Hide the desktop's own panels/docks while linux-magnify is enabled (24/7, also across logins):
+    # "all" = every panel, dock and bar (only magdoc), "dock" = the dock's edge + other docks, "none".
     hide_panels: str = "all"
 
     home_enabled: bool = True
     home_icon: str = "auto"      # "auto" copies the launcher icon from the original panel
     home_command: str = "auto"   # "auto" opens the desktop's own app menu
 
-    update_notify: bool = True    # notify when a new Magdoc version is on GitHub
+    update_notify: bool = True    # notify when a new linux-magnify version is on GitHub
     update_branch: str = "main"
 
     background: str = "rgba(28, 28, 32, 0.55)"
@@ -199,7 +199,7 @@ def _pinned_toml(p: PinnedApp) -> str:
 
 
 def dumps(cfg: Config) -> str:
-    lines = ["# Magdoc configuration. Written by Magdoc Settings; the dock reloads it on save.", ""]
+    lines = ["# linux-magnify configuration. Written by linux-magnify Settings; the dock reloads it on save.", ""]
     lines.append("[dock]")
     lines += [f"{k} = {_toml_value(getattr(cfg, k))}" for k in DOCK_KEYS]
     lines += ["", "[style]"]

@@ -430,7 +430,7 @@ class DockWindow(Gtk.ApplicationWindow):
     """Top-level surface: wlr-layer-shell on Wayland, a _NET_WM dock on X11."""
 
     def __init__(self, app, cfg: Config, mode: str, on_activate):
-        super().__init__(application=app, title="Magdoc")
+        super().__init__(application=app, title="linux-magnify magdoc")
         self.cfg = cfg
         self.mode = mode
         self.set_decorated(False)

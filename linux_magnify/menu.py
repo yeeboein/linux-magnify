@@ -1,8 +1,8 @@
-"""Magdoc's start menu: a Quickshell (QML) layer-shell window that opens above the dock.
+"""linux-magnify's start menu: a Quickshell (QML) layer-shell window that opens above the dock.
 
-The menu runs as a small background process; Magdoc opens and closes it by
+The menu runs as a small background process; linux-magnify opens and closes it by
 writing a JSON "trigger" file that the QML watches. Works from the dock, the
-Meta key (via D-Bus) and ``magdoc --menu`` (for compositor keybinds).
+Meta key (via D-Bus) and ``linux-magnify --menu`` (for compositor keybinds).
 """
 
 from __future__ import annotations

@@ -43,7 +43,7 @@ def distro_logo() -> str:
 
 
 def _kde_icon() -> str | None:
-    # The live layout first, then the backup taken before Magdoc removed the panel.
+    # The live layout first, then the backup taken before linux-magnify removed the panel.
     for path in kde_appletsrc_sources():
         for _name, _sec, general in kde_panel_applets(read_ini(path), KDE_LAUNCHERS):
             return general.get("icon") or "start-here-kde"
@@ -51,7 +51,7 @@ def _kde_icon() -> str | None:
 
 
 def _kde_launcher_live() -> bool:
-    """Is Plasma's own menu (Kickoff) still in a panel? It isn't once Magdoc removed the panels."""
+    """Is Plasma's own menu (Kickoff) still in a panel? It isn't once linux-magnify removed the panels."""
     return any(True for _ in kde_panel_applets(read_ini(kde_appletsrc_sources()[0]), KDE_LAUNCHERS))
 
 
@@ -129,7 +129,7 @@ def detect() -> Launcher:
     if "MATE" in desk:
         return Launcher(_mate_icon() or distro_logo(), generic_command() or "mate-panel --run-dialog", "MATE menu icon")
     if menu.available():
-        return Launcher(distro_logo(), MAGDOC_MENU, "Magdoc menu")
+        return Launcher(distro_logo(), MAGDOC_MENU, "linux-magnify menu")
     cmd = generic_command()
     return Launcher(distro_logo(), cmd or "", f"{shlex.split(cmd)[0]}" if cmd else "no app launcher found")
 
@@ -148,7 +148,7 @@ def _dbus_call(dest: str, path: str, iface: str, method: str, args=None) -> bool
         bus.call_sync(dest, path, iface, method, args, None, Gio.DBusCallFlags.NONE, 3000, None)
         return True
     except Exception as exc:
-        print(f"magdoc: home button: {exc}")
+        print(f"linux-magnify: home button: {exc}")
         return False
 
 
@@ -174,5 +174,5 @@ def activate(command: str) -> bool:
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
     except (OSError, ValueError) as exc:
-        print(f"magdoc: home button command failed: {exc}")
+        print(f"linux-magnify: home button command failed: {exc}")
         return False

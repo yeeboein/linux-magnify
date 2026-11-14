@@ -17,7 +17,7 @@ animation_ms = 90         # smoothing time constant; lower = snappier
 monitor = 0               # monitor index
 layer = "top"             # Wayland layer: background | bottom | top | overlay
 backend = "auto"          # auto | wayland | x11
-hide_panels = "all"       # hide the original panels while Magdoc is enabled: all (only Magdoc) | dock (same edge + other docks) | none
+hide_panels = "all"       # hide the original panels while linux-magnify is enabled: all (only magdoc) | dock (same edge + other docks) | none
 
 [style]
 background = "rgba(28, 28, 32, 0.55)"
@@ -33,7 +33,7 @@ icon = "auto"             # auto = copy the launcher icon from your original pan
 command = "auto"          # auto = your desktop's own app menu, or a command such as "rofi -show drun"
 
 [updates]
-notify = true             # notify when a new Magdoc version is on GitHub (with an "Update now" button)
+notify = true             # notify when a new linux-magnify version is on GitHub (with an "Update now" button)
 branch = "main"
 
 [apps]

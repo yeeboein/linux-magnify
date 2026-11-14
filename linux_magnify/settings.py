@@ -1,4 +1,4 @@
-"""Magdoc Settings (GTK fallback): configure, enable or disable the dock.
+"""linux-magnify Settings (GTK fallback): configure, enable or disable the dock.
 
 Every change is written to the config file right away; the running dock
 watches that file and applies changes live.
@@ -23,7 +23,7 @@ HIDE_MODE_CHOICES = [("auto", "Same as original panel"),
                      ("never", "Always visible"),
                      ("dodge", "Hide when a window covers it"),
                      ("always", "Always auto-hide")]
-HIDE_CHOICES = [("all", "Every panel and dock (only Magdoc)"),
+HIDE_CHOICES = [("all", "Every panel and dock (only magdoc)"),
                 ("dock", "Panels on the dock's edge, and other docks"),
                 ("none", "Don't hide anything")]
 CSS = b"""
@@ -83,7 +83,7 @@ def _page(*children: Gtk.Widget) -> Gtk.ScrolledWindow:
 
 class SettingsWindow(Gtk.ApplicationWindow):
     def __init__(self, app: Gtk.Application, config_path: Path | None):
-        super().__init__(application=app, title="Magdoc Settings")
+        super().__init__(application=app, title="linux-magnify Settings")
         self.set_default_size(720, 620)
         self.config_path = config_path
         self.cfg: Config = load(config_path)
@@ -189,10 +189,10 @@ class SettingsWindow(Gtk.ApplicationWindow):
         login_note = ("Hyprland, Sway and other tiling compositors don't use autostart: add "
                       "\"exec-once = linux-magnify\" (Hyprland) or \"exec linux-magnify\" (Sway) "
                       "to your config.") if any(w in desk for w in ("HYPRLAND", "SWAY", "NIRI", "RIVER")) else \
-            "Starts Magdoc now and every time you log in. Turn off to stop it and bring back your original panel."
+            "Starts magdoc now and every time you log in. Turn off to stop it and bring back your original panel."
 
         return _page(
-            _list(_row("Enable Magdoc", login_note, self.enable_switch),
+            _list(_row("Enable linux-magnify magdoc", login_note, self.enable_switch),
                   _row("Status", None, self.status_label)),
             _heading("Dock"),
             _list(
@@ -209,7 +209,7 @@ class SettingsWindow(Gtk.ApplicationWindow):
             _heading("Original panel"),
             _list(
                 _row("Hide the original panels",
-                     "Hidden all the time while Magdoc is enabled, brought back when you turn Magdoc off.",
+                     "Hidden all the time while linux-magnify is enabled, brought back when you turn linux-magnify off.",
                      self._dropdown("hide_panels", HIDE_CHOICES)),
             ),
         )
@@ -435,14 +435,14 @@ class SettingsWindow(Gtk.ApplicationWindow):
     # ---------------------------------------------------------------- about
     def _about_page(self):
         title = Gtk.Label(xalign=0)
-        title.set_markup(f"<span size='x-large' weight='bold'>Magdoc</span>  {__version__}")
+        title.set_markup(f"<span size='x-large' weight='bold'>linux-magnify</span>  {__version__}")
         desc = Gtk.Label(xalign=0, wrap=True, label=(
             "A macOS-style magnifying dock for KDE Plasma, Hyprland, Sway, niri, Xfce, Cinnamon, MATE "
             "and other Linux desktops."))
         link = Gtk.LinkButton(uri="https://github.com/yeeboein/linux-magnify", label="Project page",
                               halign=Gtk.Align.START)
         cfg_path = Gtk.Label(xalign=0, selectable=True, wrap=True,
-                             label=f"Config file: {self.cfg.path}\nCommand: magdoc  (magdoc --settings, magdoc --menu)")
+                             label=f"Config file: {self.cfg.path}\nCommand: linux-magnify  (--settings, --menu, --update; magdoc works too)")
         cfg_path.add_css_class("lm-subtitle")
         return _page(title, desc, link, cfg_path)
 

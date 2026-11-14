@@ -1,4 +1,4 @@
-"""Start, stop, enable and disable Magdoc (no GTK needed, so the Quickshell UI can use it)."""
+"""Start, stop, enable and disable linux-magnify (no GTK needed, so the Quickshell UI can use it)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from . import panels
 
 PACKAGE_PARENT = str(Path(__file__).resolve().parent.parent)
-APP_NAME = "Magdoc"
+APP_NAME = "linux-magnify magdoc"
 
 
 def runtime_dir() -> Path:
@@ -47,7 +47,7 @@ def child_env() -> dict:
 
 
 def spawn(*args: str) -> subprocess.Popen:
-    """Start another Magdoc process (the dock, the settings app, ...)."""
+    """Start another linux-magnify process (the dock, the settings app, ...)."""
     return subprocess.Popen([sys.executable, "-m", "linux_magnify", *args], env=child_env(),
                             start_new_session=True, stdin=subprocess.DEVNULL,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -68,7 +68,7 @@ def autostart_enabled() -> bool:
 
 
 def launch_command() -> str:
-    for name in ("magdoc", "linux-magnify"):
+    for name in ("linux-magnify", "magdoc"):
         exe = shutil.which(name)
         if exe:
             return exe
@@ -111,7 +111,7 @@ def enable() -> None:
 
 
 def disable() -> None:
-    """Stop Magdoc, turn off autostart and bring the original panel(s) back."""
+    """Stop linux-magnify, turn off autostart and bring the original panel(s) back."""
     set_autostart(False)
     stop_dock()
     from . import menu

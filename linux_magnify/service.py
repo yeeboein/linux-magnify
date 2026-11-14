@@ -1,4 +1,4 @@
-"""Magdoc's D-Bus service (io.github.linux_magnify.Dock on the session bus).
+"""linux-magnify's D-Bus service (io.github.linux_magnify.Dock on the session bus).
 
 * ``Windows(s json)``: the KWin script pushes the window list here.
 * ``ToggleMenu()``: opens/closes the start menu; bound to the Meta key on Plasma.
@@ -33,7 +33,7 @@ class DockService:
             if handler is not None:
                 handler(*params.unpack())
         except Exception as exc:
-            print(f"magdoc: D-Bus {method} failed: {exc}")
+            print(f"linux-magnify: D-Bus {method} failed: {exc}")
         invocation.return_value(None)
 
     def close(self):
@@ -48,5 +48,5 @@ def start() -> DockService | None:
     try:
         return DockService()
     except Exception as exc:
-        print(f"magdoc: no D-Bus session ({exc}); KWin window tracking and the Meta key are off")
+        print(f"linux-magnify: no D-Bus session ({exc}); KWin window tracking and the Meta key are off")
         return None

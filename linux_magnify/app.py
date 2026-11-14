@@ -31,9 +31,9 @@ def _display_mode() -> str:
             from gi.repository import Gtk4LayerShell as LS
             if LS.is_supported():
                 return "layer"
-            print("magdoc: compositor lacks wlr-layer-shell; showing a normal window.", file=sys.stderr)
+            print("linux-magnify: compositor lacks wlr-layer-shell; showing a normal window.", file=sys.stderr)
         except (ValueError, ImportError):
-            print("magdoc: Gtk4LayerShell typelib missing; showing a normal window.", file=sys.stderr)
+            print("linux-magnify: Gtk4LayerShell typelib missing; showing a normal window.", file=sys.stderr)
         return "window"
     if "X11" in kind:
         return "x11"
@@ -42,7 +42,7 @@ def _display_mode() -> str:
 
 class DockApp(Gtk.Application):
     def __init__(self, config_path: Path | None, overrides: dict):
-        super().__init__(application_id="io.github.linux_magnify.Magdoc",
+        super().__init__(application_id="io.github.linux_magnify.linux-magnify",
                          flags=Gio.ApplicationFlags.NON_UNIQUE)
         self.config_path = config_path
         self.overrides = overrides
@@ -71,7 +71,7 @@ class DockApp(Gtk.Application):
             return
         other = running_pid()
         if other and other != os.getpid():
-            print(f"magdoc: Magdoc is already running (pid {other}).", file=sys.stderr)
+            print(f"linux-magnify: linux-magnify magdoc is already running (pid {other}).", file=sys.stderr)
             return
         pid_file().parent.mkdir(parents=True, exist_ok=True)
         pid_file().write_text(str(os.getpid()))
@@ -94,11 +94,11 @@ class DockApp(Gtk.Application):
             menu.start()  # warm it up so the first click opens instantly
         self.backend = windows.detect(x11_session=(mode == "x11"), service=self.service)
         self.backend.on_change = lambda wins: GLib.idle_add(self._set_windows, wins)
-        print(f"magdoc: surface={mode} window-tracking={self.backend.name}", file=sys.stderr)
+        print(f"linux-magnify: surface={mode} window-tracking={self.backend.name}", file=sys.stderr)
         if self.backend.name not in ("none", "kwin"):  # kwin pushes updates itself
             threading.Thread(target=self._poll_loop, daemon=True).start()
         self._watch_config()
-        # Look for a new Magdoc a minute after start, then every few hours.
+        # Look for a new linux-magnify a minute after start, then every few hours.
         GLib.timeout_add_seconds(60, self._update_tick)
         GLib.timeout_add_seconds(1800, self._update_tick)
 
@@ -109,7 +109,7 @@ class DockApp(Gtk.Application):
         if self.service is not None:
             self.service.close()
         # The original panel stays hidden when the dock merely exits (logout, restart):
-        # it only comes back when Magdoc is disabled (control.disable / --restore-panels).
+        # it only comes back when linux-magnify is disabled (control.disable / --restore-panels).
         if self.window is not None:
             try:
                 if running_pid() == os.getpid():
@@ -133,7 +133,7 @@ class DockApp(Gtk.Application):
         if self.cfg.hide_mode == "auto":
             # Copy how the original panel hid itself (recorded before we hid it).
             self.cfg.resolved_hide_mode = panels.original_mode(self.cfg.position) or "never"
-            print(f"magdoc: hide mode copied from the original panel: {self.cfg.resolved_hide_mode}",
+            print(f"linux-magnify: hide mode copied from the original panel: {self.cfg.resolved_hide_mode}",
                   file=sys.stderr)
             self.window.apply_config(self.cfg)
         self._update_covered()
@@ -152,7 +152,7 @@ class DockApp(Gtk.Application):
 
     def _notify_update(self, st):
         updates.mark_notified(st["latest"])
-        body = f"A new version of Magdoc is ready ({st['latest'][:7]})."
+        body = f"A new version of linux-magnify is ready ({st['latest'][:7]})."
         if st.get("message"):
             body += f"\n{st['message']}"
 
@@ -161,7 +161,7 @@ class DockApp(Gtk.Application):
                 control.spawn("--update")
             else:
                 control.spawn("--settings")
-        updates.notify("Magdoc update available", body, ["update", "Update now", "default", "Details"], on_action)
+        updates.notify("linux-magnify update available", body, ["update", "Update now", "default", "Details"], on_action)
         return GLib.SOURCE_REMOVE
 
     # --------------------------------------------------------------- start menu
@@ -249,7 +249,7 @@ class DockApp(Gtk.Application):
             try:
                 wins = self.backend.list_windows()
             except Exception as exc:
-                print(f"magdoc: window backend error: {exc}", file=sys.stderr)
+                print(f"linux-magnify: window backend error: {exc}", file=sys.stderr)
                 wins = []
             GLib.idle_add(self._set_windows, wins)
             fast = self.cfg.effective_hide_mode == "dodge" and self.backend.has_geometry
@@ -308,9 +308,9 @@ class DockApp(Gtk.Application):
             add(top, "Hide This Button", "hidehome", self._hide_home)
         # One section, no separator: on X11, GTK caps a dock window's popover height,
         # and a separator pushes the last item out of view.
-        add(top, "Magdoc Settings…", "settings", lambda: spawn("--settings"))
+        add(top, "linux-magnify Settings…", "settings", lambda: spawn("--settings"))
         if item.kind == "home":  # (app icons already have 3 items; more don't fit on X11)
-            add(top, "Turn Off Magdoc", "disable", lambda: spawn("--disable"))
+            add(top, "Turn Off magdoc", "disable", lambda: spawn("--disable"))
         menu.append_section(None, top)
         self.window.view.show_menu(idx, menu, group)
 
@@ -356,9 +356,9 @@ class DockApp(Gtk.Application):
         try:
             self.cfg = self._load()
         except Exception as exc:
-            print(f"magdoc: config error, keeping old config: {exc}", file=sys.stderr)
+            print(f"linux-magnify: config error, keeping old config: {exc}", file=sys.stderr)
             return GLib.SOURCE_REMOVE
-        print("magdoc: config reloaded", file=sys.stderr)
+        print("linux-magnify: config reloaded", file=sys.stderr)
         self._build_pinned()
         self.transient = {}
         self.window.apply_config(self.cfg)

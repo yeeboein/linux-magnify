@@ -241,7 +241,7 @@ class X11Backend(Backend):
 
 
 KWIN_REPORT_SCRIPT = r"""
-// Loaded into KWin by Magdoc: reports windows (class, geometry, desktop) over D-Bus.
+// Loaded into KWin by linux-magnify: reports windows (class, geometry, desktop) over D-Bus.
 var SVC = "io.github.linux_magnify.Dock";
 function all() { return workspace.windowList ? workspace.windowList() : workspace.clientList(); }
 function onDesk(w) {
@@ -329,7 +329,7 @@ class KWinBackend(Backend):
             sid = self._kwin("/Scripting", "org.kde.kwin.Scripting", "loadScript",
                              V("(ss)", (path, name)), "(i)").unpack()[0]
         except Exception as exc:
-            print(f"magdoc: KWin scripting failed: {exc}")
+            print(f"linux-magnify: KWin scripting failed: {exc}")
             return False
         for obj in (f"/Scripting/Script{sid}", f"/{sid}"):  # Plasma 6, Plasma 5
             try:

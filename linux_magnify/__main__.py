@@ -44,7 +44,7 @@ def _choose_backend(pref: str) -> None:
         # Mutter has no wlr-layer-shell; without the library we can't use it either.
         # Fall back to XWayland, where the dock is an EWMH _NET_WM_WINDOW_TYPE_DOCK.
         if lib is None:
-            print("magdoc: gtk4-layer-shell not found, using XWayland fallback.", file=sys.stderr)
+            print("linux-magnify: gtk4-layer-shell not found, using XWayland fallback.", file=sys.stderr)
         env["GDK_BACKEND"] = "x11"
         return
     if env.get(_PRELOAD_FLAG):
@@ -56,20 +56,20 @@ def _choose_backend(pref: str) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    ap = argparse.ArgumentParser(prog="magdoc", description="Magdoc: a macOS-style magnifying dock for Linux")
+    ap = argparse.ArgumentParser(prog="linux-magnify", description="linux-magnify: a macOS-style magnifying dock for Linux")
     ap.add_argument("-c", "--config", type=Path, default=None, help=f"config file (default: {default_config_path()})")
     ap.add_argument("-p", "--position", choices=POSITIONS, help="override dock position")
     ap.add_argument("-m", "--magnification", type=float, help="override magnification factor (e.g. 2.0)")
     ap.add_argument("-s", "--icon-size", type=int, help="override resting icon size in px")
     ap.add_argument("--backend", choices=("auto", "wayland", "x11"), help="force display backend")
-    ap.add_argument("--settings", action="store_true", help="open Magdoc Settings")
+    ap.add_argument("--settings", action="store_true", help="open linux-magnify Settings")
     ap.add_argument("--gtk", action="store_true", help="with --settings: use the GTK app, not Quickshell")
-    ap.add_argument("--menu", action="store_true", help="open/close the Magdoc start menu (for keybinds)")
-    ap.add_argument("--enable", action="store_true", help="start Magdoc and turn on autostart")
+    ap.add_argument("--menu", action="store_true", help="open/close the linux-magnify start menu (for keybinds)")
+    ap.add_argument("--enable", action="store_true", help="start linux-magnify and turn on autostart")
     ap.add_argument("--disable", action="store_true",
-                    help="stop Magdoc, turn off autostart and bring back the original panels")
-    ap.add_argument("--update", action="store_true", help="download and install the latest Magdoc")
-    ap.add_argument("--check-updates", action="store_true", help="check GitHub for a newer Magdoc")
+                    help="stop linux-magnify, turn off autostart and bring back the original panels")
+    ap.add_argument("--update", action="store_true", help="download and install the latest linux-magnify")
+    ap.add_argument("--check-updates", action="store_true", help="check GitHub for a newer linux-magnify")
     ap.add_argument("--updates-json", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--restore-panels", action="store_true",
                     help="bring back the original panels without disabling autostart")
@@ -78,7 +78,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--config-set", metavar="JSON", help=argparse.SUPPRESS)
     ap.add_argument("--apps-json", action="store_true", help=argparse.SUPPRESS)
     ap.add_argument("--home", action="store_true", help=argparse.SUPPRESS)
-    ap.add_argument("--version", action="version", version=f"magdoc {__version__}")
+    ap.add_argument("--version", action="version", version=f"linux-magnify {__version__}")
     args = ap.parse_args(argv)
 
     if args.settings:
@@ -111,8 +111,8 @@ def main(argv: list[str] | None = None) -> int:
             print(f"Could not check for updates: {st['error']}")
             return 1
         else:
-            print(f"Update available: {st['latest'][:7]} ({st.get('message', '')}). Run: magdoc --update"
-                  if st["available"] else "Magdoc is up to date.")
+            print(f"Update available: {st['latest'][:7]} ({st.get('message', '')}). Run: linux-magnify --update"
+                  if st["available"] else "linux-magnify is up to date.")
         return 0
     if args.restore_panels:
         from .panels import restore

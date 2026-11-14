@@ -1,8 +1,8 @@
-// Magdoc start menu (Quickshell).
+// linux-magnify start menu (Quickshell).
 //
-// Started in the background by Magdoc. It opens and closes when Magdoc writes
+// Started in the background by linux-magnify. It opens and closes when linux-magnify writes
 // $XDG_RUNTIME_DIR/magdoc-menu.json, which happens on the dock's home button,
-// the Meta key (Plasma) and `magdoc --menu`. The file also says which edge the
+// the Meta key (Plasma) and `linux-magnify --menu`. The file also says which edge the
 // dock is on and how far the menu must stay from it, so the dock never crops it.
 
 import QtQuick
@@ -69,7 +69,7 @@ ShellRoot {
         onLoaded: root.handle(trigger.text())
     }
 
-    // Written by Magdoc's update check; shows "Update Magdoc" in the menu when there's a new version.
+    // Written by linux-magnify's update check; shows "Update linux-magnify" in the menu when there's a new version.
     FileView {
         id: updateState
         path: (Quickshell.env("XDG_STATE_HOME") || (Quickshell.env("HOME") + "/.local/state"))
@@ -209,16 +209,16 @@ ShellRoot {
                     spacing: 8
 
                     PowerButton {
-                        text: "Magdoc Settings"
+                        text: "linux-magnify Settings"
                         onClicked: root.run([root.python, "-m", "linux_magnify", "--settings"])
                     }
                     PowerButton {
-                        text: "Turn Off Magdoc"
+                        text: "Turn Off magdoc"
                         onClicked: root.run([root.python, "-m", "linux_magnify", "--disable"])
                     }
                     PowerButton {
                         visible: root.updateAvailable
-                        text: "Update Magdoc"
+                        text: "Update linux-magnify"
                         onClicked: root.run([root.python, "-m", "linux_magnify", "--update"])
                     }
                     Item { Layout.fillWidth: true }

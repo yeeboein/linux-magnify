@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Installs Magdoc for the current user and (optionally) enables autostart.
+# Installs linux-magnify for the current user and (optionally) enables autostart.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# --yes: don't ask anything (used by `magdoc --update`); --commit SHA: the version being installed.
+# --yes: don't ask anything (used by `linux-magnify --update`); --commit SHA: the version being installed.
 assume_yes=0; commit=""
 while (( $# )); do
   case "$1" in
@@ -38,9 +38,9 @@ if (( ${#missing[@]} )); then
   if (( ! assume_yes )); then read -rp "Continue anyway? [y/N] " ans; [[ "$ans" == [yY]* ]] || exit 1; fi
 fi
 if ! command -v qs >/dev/null && ! command -v quickshell >/dev/null; then
-  echo "Optional: install Quickshell for the Magdoc start menu and the Quickshell settings app"
+  echo "Optional: install Quickshell for the linux-magnify start menu and the Quickshell settings app"
   echo "  (Arch: sudo pacman -S quickshell, or the quickshell-git AUR package)."
-  echo "  Without it, Magdoc uses KRunner as the start menu on Plasma and a GTK settings app."
+  echo "  Without it, linux-magnify uses KRunner as the start menu on Plasma and a GTK settings app."
   echo
 fi
 
@@ -54,7 +54,7 @@ autostart="$HOME/.config/autostart"
 if (( assume_yes )); then   # an update keeps the current choice
   want_autostart=0; [[ -f "$autostart/magdoc.desktop" || -f "$autostart/linux-magnify.desktop" ]] && want_autostart=1
 else
-  ask "Start Magdoc automatically on login? [Y/n] " y
+  ask "Start linux-magnify magdoc automatically on login? [Y/n] " y
   want_autostart=1; [[ "$ans" == [nN]* ]] && want_autostart=0
 fi
 
@@ -72,8 +72,8 @@ export PYTHONPATH="$share\${PYTHONPATH:+:\$PYTHONPATH}"
 exec python3 -m linux_magnify "\$@"
 SH
 chmod +x "$stage/launcher"
-sed "s|^Exec=.*|Exec=$bin/magdoc|" data/magdoc.desktop > "$stage/app.desktop"
-sed "s|^Exec=.*|Exec=$bin/magdoc --settings|" data/magdoc-settings.desktop > "$stage/settings.desktop"
+sed "s|^Exec=.*|Exec=$bin/linux-magnify|" data/magdoc.desktop > "$stage/app.desktop"
+sed "s|^Exec=.*|Exec=$bin/linux-magnify --settings|" data/magdoc-settings.desktop > "$stage/settings.desktop"
 cp "$stage/app.desktop" "$stage/autostart.desktop"
 printf '{"commit": "%s", "installed": "%s"}\n' "$commit" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$stage/INSTALLED.json"
 cp data/config.example.toml "$stage/config.toml"
@@ -85,8 +85,9 @@ mkdir -p "$bin" "$share" "$apps" "$conf"
 [[ -d "$share/linux_magnify" ]] && mv "$share/linux_magnify" "$stage/old"
 mv "$stage/linux_magnify" "$share/linux_magnify"
 mv -f "$stage/INSTALLED.json" "$share/INSTALLED.json"
-mv -f "$stage/launcher" "$bin/magdoc"
-ln -sfn magdoc "$bin/linux-magnify"   # the old command name keeps working
+rm -f "$bin/linux-magnify"   # was a link in some versions
+mv -f "$stage/launcher" "$bin/linux-magnify"
+ln -sfn linux-magnify "$bin/magdoc"   # short alias
 mv -f "$stage/app.desktop" "$apps/magdoc.desktop"
 mv -f "$stage/settings.desktop" "$apps/magdoc-settings.desktop"
 rm -f "$apps/linux-magnify.desktop" "$apps/linux-magnify-settings.desktop"   # old names
@@ -106,6 +107,6 @@ if (( want_autostart )); then
   echo "Autostart enabled (KDE, GNOME, XFCE, Cinnamon, MATE, LXQt...)."
   echo "Hyprland/Sway don't read ~/.config/autostart. See the README for the exec-once line."
 fi
-echo "Installed. Run: magdoc"
-echo "Settings: open \"Magdoc Settings\" from your app menu, or run: magdoc --settings"
-echo "To turn Magdoc off and get your original panels back: magdoc --disable"
+echo "Installed. Run: linux-magnify"
+echo "Settings: open \"linux-magnify Settings\" from your app menu, or run: linux-magnify --settings"
+echo "To turn linux-magnify off and get your original panels back: linux-magnify --disable"
