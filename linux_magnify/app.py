@@ -14,7 +14,7 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Gdk", "4.0")
 from gi.repository import Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from . import apps, control, home, magnify, menu, panels, service, updates, windows  # noqa: E402
+from . import apps, control, home, icons, magnify, menu, panels, service, updates, windows  # noqa: E402
 from .config import Config, PinnedApp, load, save  # noqa: E402
 from .dock import DockWindow  # noqa: E402
 
@@ -79,6 +79,9 @@ class DockApp(Gtk.Application):
             GLib.unix_signal_add(GLib.PRIORITY_DEFAULT, sig, self._on_signal)
 
         self.hold()
+        self._icon_theme = icons.apply_to_gtk(self.cfg.icon_theme)  # use the desktop's icon pack
+        self._icon_watch = icons.watch(self._on_icon_theme_changed)
+        self._icon_timer = 0
         mode = _display_mode()
         self.window = DockWindow(self, self.cfg, mode, self._activate_item)
         self._build_pinned()
@@ -137,6 +140,25 @@ class DockApp(Gtk.Application):
                   file=sys.stderr)
             self.window.apply_config(self.cfg)
         self._update_covered()
+        return GLib.SOURCE_REMOVE
+
+    # --------------------------------------------------------------- icon theme
+    def _on_icon_theme_changed(self):
+        if self._icon_timer:
+            GLib.source_remove(self._icon_timer)
+        self._icon_timer = GLib.timeout_add(500, self._apply_icon_theme)
+
+    def _apply_icon_theme(self):
+        self._icon_timer = 0
+        theme = icons.apply_to_gtk(self.cfg.icon_theme)
+        if theme != self._icon_theme:
+            print(f"linux-magnify: icon theme: {theme}", file=sys.stderr)
+            self._icon_theme = theme
+            self.window.view._icon_cache.clear()
+            self.window.view.queue_draw()
+            if menu._running():  # restart the start menu so it picks up the new icon pack
+                menu.stop()
+                menu.start()
         return GLib.SOURCE_REMOVE
 
     # --------------------------------------------------------------- updates
@@ -366,4 +388,5 @@ class DockApp(Gtk.Application):
         self.window.view.update_size()
         self._update_menu_geometry()
         self._apply_panel_hiding()
+        self._apply_icon_theme()
         return GLib.SOURCE_REMOVE

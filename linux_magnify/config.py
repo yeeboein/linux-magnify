@@ -66,6 +66,7 @@ class Config:
     indicator: str = "rgba(255, 255, 255, 0.9)"
     label_background: str = "rgba(20, 20, 24, 0.85)"
     label_foreground: str = "rgba(255, 255, 255, 1.0)"
+    icon_theme: str = "auto"  # "auto" = the desktop's icon theme (icon pack), or a theme name
 
     pinned: list[PinnedApp] = field(default_factory=list)
     pinned_imported: bool = False  # True when pins were copied from the original panel
@@ -119,7 +120,7 @@ DOCK_KEYS = ("position", "icon_size", "magnification", "spread", "spacing", "pad
              "hide_mode", "autohide_delay_ms", "show_labels", "show_running", "animation_ms",
              "monitor", "layer", "backend", "hide_panels")
 STYLE_KEYS = ("background", "border", "corner_radius", "indicator", "label_background",
-              "label_foreground")
+              "label_foreground", "icon_theme")
 HOME_KEYS = {"enabled": "home_enabled", "icon": "home_icon", "command": "home_command"}
 UPDATE_KEYS = {"notify": "update_notify", "branch": "update_branch"}
 

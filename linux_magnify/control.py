@@ -43,6 +43,15 @@ def child_env() -> dict:
     env["MAGDOC_PYTHON"] = sys.executable
     for var in ("LD_PRELOAD", "LINUX_MAGNIFY_PRELOADED"):
         env.pop(var, None)  # let the child pick its own display backend
+    # Quickshell (start menu, settings) doesn't read KDE's icon setting: pass the icon pack on.
+    try:
+        from . import icons
+        from .config import load
+        theme = icons.resolve(load(import_pins=False).icon_theme)
+        if theme:
+            env["QS_ICON_THEME"] = theme
+    except Exception:
+        pass
     return env
 
 

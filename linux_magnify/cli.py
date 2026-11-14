@@ -53,6 +53,9 @@ def config_json(path: Path | None) -> dict:
     }
     data["choices"] = {"position": list(POSITIONS), "hide_mode": list(HIDE_MODES),
                        "hide_panels": list(HIDE_PANEL_MODES)}
+    from . import icons
+    data["icon_theme_detected"] = icons.desktop_theme() or ""
+    data["icon_themes"] = icons.installed_themes()
     data["config_path"] = str(cfg.path)
     data["version"] = __version__
     return data

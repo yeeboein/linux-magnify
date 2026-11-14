@@ -87,6 +87,8 @@ class SettingsWindow(Gtk.ApplicationWindow):
         self.set_default_size(720, 620)
         self.config_path = config_path
         self.cfg: Config = load(config_path)
+        from . import icons
+        icons.apply_to_gtk(self.cfg.icon_theme)  # same icon pack as the desktop
         self._save_id = 0
 
         provider = Gtk.CssProvider()
@@ -193,7 +195,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
 
         return _page(
             _list(_row("Enable linux-magnify magdoc", login_note, self.enable_switch),
-                  _row("Status", None, self.status_label)),
+                  _row("Status", None, self.status_label),
+                  _row("Turn off magdoc", "Stops the dock, turns off autostart and brings your original panels back.",
+                       self._turn_off_button())),
             _heading("Dock"),
             _list(
                 _row("Position", "Screen edge for the dock", self._dropdown(
@@ -232,6 +236,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
                 _row("Margin", "Gap between the shelf and the screen edge", self._spin("margin", 0, 96, 1)),
                 _row("Corner radius", None, self._spin("corner_radius", 0, 64, 1)),
             ),
+            _heading("Icons"),
+            _list(_row("Icon theme", "“Same as desktop” uses the icon pack chosen in your system settings.",
+                       self._icon_theme_dropdown())),
             _heading("Colours"),
             _list(
                 _row("Shelf background", None, self._color("background")),
@@ -242,6 +249,18 @@ class SettingsWindow(Gtk.ApplicationWindow):
             ),
             self._reset_button(),
         )
+
+    def _icon_theme_dropdown(self) -> Gtk.DropDown:
+        from . import icons
+        detected = icons.desktop_theme()
+        choices = [("auto", "Same as desktop" + (f" ({detected})" if detected else ""))]
+        choices += [(t, t) for t in icons.installed_themes()]
+        dd = self._dropdown("icon_theme", choices)
+
+        def apply(*_):
+            icons.apply_to_gtk(self.cfg.icon_theme)  # preview it here too
+        dd.connect("notify::selected", apply)
+        return dd
 
     def _reset_button(self):
         btn = Gtk.Button(label="Restore Default Look", halign=Gtk.Align.START, margin_top=12)
@@ -447,6 +466,16 @@ class SettingsWindow(Gtk.ApplicationWindow):
         return _page(title, desc, link, cfg_path)
 
     # --------------------------------------------------------- enable/disable
+    def _turn_off_button(self) -> Gtk.Button:
+        self.power_button = Gtk.Button(label="Turn Off magdoc")
+        self.power_button.add_css_class("destructive-action")
+
+        def clicked(*_):
+            # Flipping the switch runs enable()/disable() (see _on_enable).
+            self.enable_switch.set_active(running_pid() is None)
+        self.power_button.connect("clicked", clicked)
+        return self.power_button
+
     def _on_enable(self, sw, _p):
         on = sw.get_active()
         # disable() stops the dock and brings the original panels back (it can take a
@@ -457,6 +486,9 @@ class SettingsWindow(Gtk.ApplicationWindow):
 
     def _refresh_status(self):
         pid = running_pid()
+        if hasattr(self, "power_button"):
+            self.power_button.set_label("Turn Off magdoc" if pid else "Turn On magdoc")
+            (self.power_button.add_css_class if pid else self.power_button.remove_css_class)("destructive-action")
         if pid:
             self.status_label.set_text("Running")
             self.status_label.remove_css_class("lm-status-off")

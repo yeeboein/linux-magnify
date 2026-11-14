@@ -10,7 +10,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Gsk", "4.0")
 gi.require_version("Graphene", "1.0")
-from gi.repository import Gdk, GLib, Graphene, Gsk, Gtk  # noqa: E402
+from gi.repository import Gdk, Gio, GLib, Graphene, Gsk, Gtk  # noqa: E402
 
 import cairo  # noqa: E402
 
@@ -355,7 +355,7 @@ class DockView(Gtk.Widget):
         key = (id(item), size, scale)
         p = self._icon_cache.get(key)
         if p is None:
-            theme = Gtk.IconTheme.get_for_display(self.get_display())
+            theme = self._theme_for(item.icon)
             flags = Gtk.IconLookupFlags(0)
             if item.icon is not None:
                 p = theme.lookup_by_gicon(item.icon, size, scale, Gtk.TextDirection.NONE, flags)
@@ -364,6 +364,22 @@ class DockView(Gtk.Widget):
                                       Gtk.TextDirection.NONE, flags)
             self._icon_cache[key] = p
         return p
+
+    def _theme_for(self, gicon) -> Gtk.IconTheme:
+        """The user's icon pack, or, for icons the pack doesn't have, the desktop's default
+        theme (Breeze on Plasma, then Adwaita): what KDE itself does for missing icons."""
+        theme = Gtk.IconTheme.get_for_display(self.get_display())
+        if gicon is None or not isinstance(gicon, Gio.ThemedIcon) or theme.has_gicon(gicon):
+            return theme
+        if not hasattr(self, "_fallback_themes"):
+            from . import icons
+            self._fallback_themes = []
+            for name in ("breeze", "Adwaita"):
+                if icons.theme_exists(name):
+                    t = Gtk.IconTheme()
+                    t.set_theme_name(name)
+                    self._fallback_themes.append(t)
+        return next((t for t in self._fallback_themes if t.has_gicon(gicon)), theme)
 
     def do_snapshot(self, snap: Gtk.Snapshot):
         if not self.items:

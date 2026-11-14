@@ -120,7 +120,7 @@ linux-magnify --settings
 It's a Quickshell app that follows your Plasma colour scheme. If Quickshell isn't installed, a GTK version opens instead, and `linux-magnify --settings --gtk` forces the GTK one.
 
 - **General:** the **Enable linux-magnify magdoc** switch starts linux-magnify and turns on autostart. Turning it off stops linux-magnify and brings your original panels back. Also position, monitor, hiding mode, labels, open apps, and which original panels to hide.
-- **Appearance:** icon size, magnification, spread, animation speed, spacing and colours.
+- **Appearance:** icon size, magnification, spread, animation speed, spacing, colours, and the icon theme. By default this follows the icon pack chosen in your system settings, and changes along with it.
 - **Apps:** pinned apps. Add, remove and reorder them, or copy them from your original panel again.
 - **Home button:** show or hide it, and override its icon or command.
 - **Updates:** the installed and latest versions, **Check Now** and **Update Now**, and whether to be notified about new versions.

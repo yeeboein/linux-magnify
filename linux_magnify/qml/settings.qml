@@ -261,9 +261,14 @@ ShellRoot {
                     }
                     Item { Layout.fillHeight: true }
                     Label {
-                        text: root.running ? "● Running" : "○ Stopped"
+                        text: root.running ? "● magdoc is running" : "○ magdoc is off"
                         color: root.running ? "#2ec27e" : pal.windowText
                         opacity: root.running ? 1 : 0.6
+                    }
+                    Button {
+                        Layout.fillWidth: true
+                        text: root.running ? "Turn Off magdoc" : "Turn On magdoc"
+                        onClicked: Quickshell.execDetached(root.cmd([root.running ? "--disable" : "--enable"]))
                     }
                 }
             }
@@ -434,6 +439,24 @@ ShellRoot {
                                         value: root.cfg[modelData.key] || 0
                                         onValueModified: root.set(modelData.key, value)
                                     }
+                                }
+                            }
+                        }
+
+                        Heading { text: "Icons" }
+                        Card {
+                            SettingRow {
+                                title: "Icon theme"
+                                subtitle: "“Same as desktop” uses the icon pack chosen in your system settings."
+                                ComboBox {
+                                    id: themeBox
+                                    implicitWidth: 280
+                                    readonly property var themes: root.cfg.icon_themes || []
+                                    model: ["Same as desktop" + (root.cfg.icon_theme_detected
+                                            ? " (" + root.cfg.icon_theme_detected + ")" : "")].concat(themes)
+                                    currentIndex: !root.cfg.icon_theme || root.cfg.icon_theme === "auto"
+                                                  ? 0 : Math.max(0, themes.indexOf(root.cfg.icon_theme) + 1)
+                                    onActivated: index => root.set("icon_theme", index === 0 ? "auto" : themes[index - 1])
                                 }
                             }
                         }
